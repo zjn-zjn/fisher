@@ -1,0 +1,4 @@
+/output/
+/.idea/
+./go.sum
+./service/service_test.go

@@ -1,4 +1,4 @@
 /output/
 /.idea/
 ./go.sum
-./service/service_test.go
+/service/service_test.go

@@ -1,6 +1,6 @@
 # coin-trade
 
-coin trade with saga
+基于saga语义的转账交易实现，如A转账给B和C
 
 conf/ddl.sql 为数据库表结构定义
 

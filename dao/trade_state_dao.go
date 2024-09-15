@@ -3,12 +3,9 @@ package dao
 import (
 	"context"
 
-	"gorm.io/gorm"
-	"gorm.io/hints"
-
 	"github.com/zjn-zjn/coin-trade/basic"
-	"github.com/zjn-zjn/coin-trade/conf"
 	"github.com/zjn-zjn/coin-trade/model"
+	"gorm.io/gorm"
 )
 
 // GetOrCreateTradeState 获取交易记录，如果不存在则创建
@@ -38,7 +35,7 @@ func GetOrCreateTradeState(ctx context.Context, req *model.CoinTradeReq) (*model
 func GetTradeState(ctx context.Context, tradeId int64, tradeScene basic.TradeScene, db *gorm.DB) (*model.TradeState, error) {
 	var records []*model.TradeState
 	if db == nil {
-		db = conf.GetCoinTradeWriteDB(ctx)
+		db = basic.GetCoinTradeWriteDB(ctx)
 	}
 	err := db.Table(model.GetTradeStateTableName(tradeId)).
 		Where("trade_id = ? and trade_scene = ?", tradeId, tradeScene).
@@ -54,7 +51,7 @@ func GetTradeState(ctx context.Context, tradeId int64, tradeScene basic.TradeSce
 
 // UpdateTradeStateStatus 更新交易状态
 func UpdateTradeStateStatus(ctx context.Context, tradeId int64, tradeScene basic.TradeScene, fromStatus, toStatus basic.TradeStateStatus) error {
-	err := conf.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).Clauses(hints.ForceIndex("uk_trade_state")).
+	err := basic.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).
 		Where("trade_id = ? and trade_scene = ? and status = ?", tradeId, tradeScene, fromStatus).
 		Updates(map[string]interface{}{
 			"status": toStatus,
@@ -67,7 +64,7 @@ func UpdateTradeStateStatus(ctx context.Context, tradeId int64, tradeScene basic
 
 // UpdateTradeStateStatusWithAffect 更新交易状态并返回是否有更改
 func UpdateTradeStateStatusWithAffect(ctx context.Context, tradeId int64, tradeScene basic.TradeScene, fromStatus, toStatus basic.TradeStateStatus) (bool, error) {
-	res := conf.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).Clauses(hints.ForceIndex("uk_trade_state")).
+	res := basic.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).
 		Where("trade_id = ? and trade_scene = ? and status = ?", tradeId, tradeScene, fromStatus).
 		Updates(map[string]interface{}{
 			"status": toStatus,
@@ -80,7 +77,7 @@ func UpdateTradeStateStatusWithAffect(ctx context.Context, tradeId int64, tradeS
 
 // UpdateTradeStateToRollbackDoing 将非回滚成功的交易状态更新为回滚中
 func UpdateTradeStateToRollbackDoing(ctx context.Context, tradeId int64, tradeScene basic.TradeScene) (bool, error) {
-	res := conf.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).Clauses(hints.ForceIndex("uk_trade_state")).
+	res := basic.GetCoinTradeWriteDB(ctx).Table(model.GetTradeStateTableName(tradeId)).
 		Where("trade_id = ? and trade_scene = ? and status != ?", tradeId, tradeScene, basic.TradeStateStatusRollbackDone).
 		Updates(map[string]interface{}{
 			"status": basic.TradeStateStatusRollbackDoing,
@@ -110,7 +107,7 @@ func GetNeedInspectionTradeStateList(ctx context.Context, lastTime int64) ([]*mo
 
 func getLastTimeNeedInspectionTradeStateListByTable(ctx context.Context, tableName string, lastTime int64) ([]*model.TradeState, error) {
 	var records []*model.TradeState
-	err := conf.GetCoinTradeWriteDB(ctx).Table(tableName).
+	err := basic.GetCoinTradeWriteDB(ctx).Table(tableName).
 		Where("status <= ? and updated_at <= ?", basic.TradeStateStatusHalfSuccess, lastTime).
 		Find(&records).Error
 	if err != nil {
@@ -121,7 +118,7 @@ func getLastTimeNeedInspectionTradeStateListByTable(ctx context.Context, tableNa
 
 func CreateTradeState(ctx context.Context, state *model.TradeState, db *gorm.DB) error {
 	if db == nil {
-		db = conf.GetCoinTradeWriteDB(ctx)
+		db = basic.GetCoinTradeWriteDB(ctx)
 	}
 	err := db.Table(model.GetTradeStateTableName(state.TradeId)).Create(state).Error
 	if err != nil {

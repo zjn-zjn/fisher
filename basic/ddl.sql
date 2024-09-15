@@ -13,7 +13,7 @@ CREATE TABLE `trade_state`
     `updated_at`     bigint        NOT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`),
     unique index uk_trade_state (trade_id, trade_scene),
-    KEY              `status_index` (`status`)
+    KEY              `status_updated_at_index` (`status`, `updated_at`)
 ) COMMENT '交易状态表';
 
 CREATE TABLE `trade_record`
@@ -24,9 +24,9 @@ CREATE TABLE `trade_record`
     `trade_scene`  int           NOT NULL COMMENT '交易场景',
     `trade_type`   int           NOT NULL COMMENT '交易类型',
     `trade_status` int           NOT NULL COMMENT '交易状态 1-正常 2-已回滚 3-空回滚',
-    `amount`       bigint        NOT NULL COMMENT '扣款金额',
+    `amount`       bigint        NOT NULL COMMENT '变动金额',
     `coin_type`    int           NOT NULL COMMENT '虚拟币类型',
-    `change_type`  int           NOT NULL COMMENT '变动类型，消费着的trade_scene 收益者的add_type',
+    `change_type`  int           NOT NULL COMMENT '变动类型，扣款者的trade_scene 收款者的add_type',
     `comment`      varchar(1000) NOT NULL COMMENT '备注',
     `created_at`   bigint        NOT NULL COMMENT '创建时间',
     `updated_at`   bigint        NOT NULL COMMENT '更新时间',

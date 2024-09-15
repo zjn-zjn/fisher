@@ -1,10 +1,8 @@
-package conf
+package basic
 
 import (
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
-
-	"github.com/zjn-zjn/coin-trade/basic"
 )
 
 type TradeConf struct {
@@ -16,17 +14,19 @@ type TradeConf struct {
 	OfficialWalletMax   int64    `json:"official_wallet_max"`    //官方钱包最大值
 }
 
+// InitWithDefault 使用默认配置初始化
 func InitWithDefault(db *gorm.DB) error {
 	return InitWithConf(&TradeConf{
 		DB:                  db,
-		TradeStateSplitNum:  basic.DefaultTradeStateSplitNum,
-		TradeRecordSplitNum: basic.DefaultTradeRecordSplitNum,
-		WalletBagSplitNum:   basic.DefaultWalletBagSplitNum,
-		OfficialWalletStep:  basic.DefaultOfficialWalletStep,
-		OfficialWalletMax:   basic.DefaultOfficialWalletMax,
+		TradeStateSplitNum:  DefaultTradeStateSplitNum,
+		TradeRecordSplitNum: DefaultTradeRecordSplitNum,
+		WalletBagSplitNum:   DefaultWalletBagSplitNum,
+		OfficialWalletStep:  DefaultOfficialWalletStep,
+		OfficialWalletMax:   DefaultOfficialWalletMax,
 	})
 }
 
+// InitWithConf 使用配置初始化
 func InitWithConf(conf *TradeConf) error {
 	if conf == nil {
 		return errors.New("conf is nil")
@@ -35,12 +35,12 @@ func InitWithConf(conf *TradeConf) error {
 		return errors.New("db is nil")
 	}
 	initCoinTradeDB(conf.DB)
-	err := basic.InitOfficialWallet(conf.OfficialWalletStep, conf.OfficialWalletMax)
+	err := initOfficialWallet(conf.OfficialWalletStep, conf.OfficialWalletMax)
 	if err != nil {
 		return err
 	}
-	basic.InitTradeStateSplitNum(conf.TradeStateSplitNum)
-	basic.InitTradeRecordSplitNum(conf.TradeRecordSplitNum)
-	basic.InitWalletBagSplitNum(conf.WalletBagSplitNum)
+	initTradeStateSplitNum(conf.TradeStateSplitNum)
+	initTradeRecordSplitNum(conf.TradeRecordSplitNum)
+	initWalletBagSplitNum(conf.WalletBagSplitNum)
 	return nil
 }

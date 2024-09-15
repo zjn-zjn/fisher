@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-
 	"github.com/zjn-zjn/coin-trade/basic"
 	"github.com/zjn-zjn/coin-trade/dao"
 	"github.com/zjn-zjn/coin-trade/model"
 )
 
-// CoinTradeInspection 拿到截止lastTime还在进行中(doing 和 rollback doing)的交易，进行推进
+// CoinTradeInspection 拿到截止lastTime还在进行中(doing、rollback doing 和 half success)的交易，进行推进
 func CoinTradeInspection(ctx context.Context, lastTime int64) []error {
 	//获取需要推进的交易
 	stateList, err := dao.GetNeedInspectionTradeStateList(ctx, lastTime)
@@ -54,38 +53,29 @@ func processHalfSuccessState(ctx context.Context, state *model.TradeState) error
 		return err
 	}
 	for _, tx := range txs {
-		err = tx.Exec(ctx, state.TradeId)
+		err = tx.Exec(ctx)
 		if err != nil {
 			return err
 		}
 	}
-	err = dao.UpdateTradeStateStatus(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusDoing, basic.TradeStateStatusSuccess)
+	err = dao.UpdateTradeStateStatus(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusHalfSuccess, basic.TradeStateStatusSuccess)
 	return err
 }
 
 // HalfSuccess的推进应该极力保证成功,所以没有回滚操作
 func tradeProcessHalfSuccessCoinTxSequences(state *model.TradeState) ([]dao.TradeTxItem, error) {
-	var txs []dao.TradeTxItem
-	//扣除金额
-	txs = append(txs, dao.TradeTxItem{
-		Exec: func(ctx context.Context, tradeId int64) error {
-			err := dao.DeductionWallet(ctx, state.FromWalletId, state.TradeId, state.FromAmount, state.CoinType, state.TradeScene, basic.TradeRecordStatusNormal, 0, state.Comment)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-	})
+	var txs = make([]dao.TradeTxItem, 0)
+	//扣除金额一定是已经成功，所以这里不会再有扣除动作
 	//增加金额
 	for _, toWalletInfo := range state.ToWallets {
 		txs = append(txs, dao.TradeTxItem{
-			Exec: func(ctx context.Context, tradeId int64) error {
+			Exec: func(ctx context.Context) error {
 				// 增加金额
 				comment := state.Comment
 				if toWalletInfo.Comment != "" {
 					comment = toWalletInfo.Comment
 				}
-				err := dao.IncreaseWallet(ctx, toWalletInfo.WalletId, state.TradeId, toWalletInfo.Amount, state.CoinType, state.TradeScene, basic.TradeRecordStatusNormal, 0, comment)
+				err := dao.IncreaseWallet(ctx, toWalletInfo.WalletId, state.TradeId, toWalletInfo.Amount, state.CoinType, state.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(toWalletInfo.AddType), comment)
 				if err != nil {
 					return err
 				}

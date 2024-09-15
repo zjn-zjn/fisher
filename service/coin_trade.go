@@ -46,12 +46,12 @@ func CoinTrade(ctx context.Context, req *model.CoinTradeReq) error {
 		//当前非doing 直接报错
 		return basic.StateMutationErr
 	}
-	txs, err := coinTradeSequences(req)
+	deductionTx, increaseTxs, err := coinTradeSequences(req)
 	if err != nil {
 		return err
 	}
 
-	err = dao.TxWrapper(ctx, state, txs)
+	err = dao.TxWrapper(ctx, state, deductionTx, increaseTxs, req.UseHalfSuccess)
 	if err != nil {
 		return err
 	}
@@ -148,18 +148,17 @@ func checkArgs(req *model.CoinTradeReq) error {
 	return nil
 }
 
-func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, error) {
-	var txs []*dao.TradeTxItem
+func coinTradeSequences(req *model.CoinTradeReq) (*dao.TradeTxItem, []*dao.TradeTxItem, error) {
 	//扣除金额
-	txs = append(txs, &dao.TradeTxItem{
-		Exec: func(ctx context.Context, tradeId int64) error {
+	deductionTx := &dao.TradeTxItem{
+		Exec: func(ctx context.Context) error {
 			err := dao.DeductionWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(req.TradeScene), req.Comment)
 			if err != nil {
 				return err
 			}
 			return nil
 		},
-		Rollback: func(ctx context.Context, tradeId int64) error {
+		Rollback: func(ctx context.Context) error {
 			//回滚增加金额
 			err := dao.IncreaseWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(req.TradeScene), req.Comment)
 			if err != nil {
@@ -167,12 +166,13 @@ func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, error) {
 			}
 			return nil
 		},
-	})
+	}
+	var increaseTxs []*dao.TradeTxItem
 	//增加金额
 	for _, toWalletInfo := range req.ToWallets {
 		toWalletInfo := toWalletInfo
-		txs = append(txs, &dao.TradeTxItem{
-			Exec: func(ctx context.Context, tradeId int64) error {
+		increaseTxs = append(increaseTxs, &dao.TradeTxItem{
+			Exec: func(ctx context.Context) error {
 				// 增加金额
 				comment := req.Comment
 				if toWalletInfo.Comment != "" {
@@ -184,7 +184,7 @@ func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, error) {
 				}
 				return nil
 			},
-			Rollback: func(ctx context.Context, tradeId int64) error {
+			Rollback: func(ctx context.Context) error {
 				//回滚扣除金额
 				err := dao.DeductionWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(toWalletInfo.AddType), req.Comment)
 				if err != nil {
@@ -194,5 +194,5 @@ func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, error) {
 			},
 		})
 	}
-	return txs, nil
+	return deductionTx, increaseTxs, nil
 }

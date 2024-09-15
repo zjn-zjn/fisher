@@ -6,7 +6,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 
 	"github.com/zjn-zjn/coin-trade/basic"
-	"github.com/zjn-zjn/coin-trade/conf"
 	"github.com/zjn-zjn/coin-trade/model"
 
 	"github.com/pkg/errors"
@@ -15,10 +14,10 @@ import (
 
 func deductWalletAmount(ctx context.Context, walletId, amount int64, coinType basic.CoinType, tradeStatus basic.TradeRecordStatus, db *gorm.DB) error {
 	if db == nil {
-		db = conf.GetCoinTradeWriteDB(ctx)
+		db = basic.GetCoinTradeWriteDB(ctx)
 	}
 	var walletDB = db.Table(model.GetWalletBagTableName(walletId))
-	//这里采用update coin = coin - 1 where coin - amount >= 0 的方式进行扣减，提高并发性能
+	//这里采用update coin = coin - 1 where coin - amount >= 0 的方式进行扣减，提高并发成功率
 	if tradeStatus == basic.TradeRecordStatusRollback || basic.IsOfficialWallet(walletId) {
 		//官方账号和回滚 不使用coin - amount >= 0条件，直接扣减
 		walletDB = walletDB.Where("wallet_id = ? and coin_type = ?", walletId, coinType)
@@ -36,11 +35,11 @@ func deductWalletAmount(ctx context.Context, walletId, amount int64, coinType ba
 	return nil
 }
 
-func addWalletAmount(ctx context.Context, walletId, amount int64, coinType basic.CoinType, tradeStatus basic.TradeRecordStatus, db *gorm.DB) error {
+func increaseWalletAmount(ctx context.Context, walletId, amount int64, coinType basic.CoinType, db *gorm.DB) error {
 	if db == nil {
-		db = conf.GetCoinTradeWriteDB(ctx)
+		db = basic.GetCoinTradeWriteDB(ctx)
 	}
-	//这里采用update coin = coin + amount 的方式进行增加，提高并发性能
+	//这里采用update coin = coin + amount 的方式进行增加，提高并发成功率
 	res := db.Table(model.GetWalletBagTableName(walletId)).
 		Where("wallet_id = ? and coin_type = ?", walletId, coinType).
 		UpdateColumn("amount", gorm.Expr("amount + ?", amount))
@@ -58,7 +57,7 @@ func getWalletBagDefaultCreate(ctx context.Context, walletId int64, coinType bas
 	var walletBag *model.WalletBag
 	var walletBags []model.WalletBag
 	//获取钱包，不存在就创建
-	if err := conf.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).
+	if err := basic.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).
 		Where("wallet_id = ? and coin_type = ?", walletId, coinType).
 		Find(&walletBags).Error; err != nil {
 		return nil, basic.NewDBFailed(err)
@@ -71,11 +70,11 @@ func getWalletBagDefaultCreate(ctx context.Context, walletId int64, coinType bas
 		Amount:   0,
 		CoinType: coinType,
 	}
-	if err := conf.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).Create(&walletBag).Error; err != nil {
+	if err := basic.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).Create(&walletBag).Error; err != nil {
 		//如果是唯一键冲突错误，则再次查询
 		var mysqlErr *mysql.MySQLError
 		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
-			if err = conf.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).
+			if err = basic.GetCoinTradeWriteDB(ctx).Table(model.GetWalletBagTableName(walletId)).
 				Where("wallet_id = ? and coin_type = ?", walletId, coinType).
 				Find(&walletBags).Error; err != nil {
 				return nil, basic.NewDBFailed(err)

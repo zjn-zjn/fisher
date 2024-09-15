@@ -38,7 +38,7 @@ func RollbackTrade(ctx context.Context, req *model.RollbackTradeReq) error {
 			//那为什么找不到事务就直接返回报错呢？
 			//因为如果A调用B的交易，不能正常触达B，B无法生成交易记录，那么这次回滚就一直不能够成功
 			if err = dao.CreateTradeState(ctx, state, db); err != nil {
-				return basic.NewDBFailed(err)
+				return err
 			}
 		}
 		return nil

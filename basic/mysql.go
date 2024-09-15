@@ -1,4 +1,4 @@
-package conf
+package basic
 
 import (
 	"context"

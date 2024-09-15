@@ -2,26 +2,65 @@ package dao
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
-	"github.com/zjn-zjn/coin-trade/conf"
 	"github.com/zjn-zjn/coin-trade/model"
 
 	"github.com/zjn-zjn/coin-trade/basic"
 )
 
 type TradeTxItem struct {
-	Exec     func(ctx context.Context, tradeId int64) error
-	Rollback func(ctx context.Context, tradeId int64) error
+	Exec     func(ctx context.Context) error
+	Rollback func(ctx context.Context) error
 }
 
-func TxWrapper(ctx context.Context, state *model.TradeState, tradeTxItems []*TradeTxItem) error {
-	for _, item := range tradeTxItems {
-		err := item.Exec(ctx, state.TradeId)
+func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItem *TradeTxItem, increaseTxItems []*TradeTxItem, useHalfSuccess bool) error {
+
+	err := deductionTxItem.Exec(ctx)
+	if err != nil {
+		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+		return err
+	}
+	if useHalfSuccess {
+		//由Doing到HalfSuccess
+		affect, err := UpdateTradeStateStatusWithAffect(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusDoing, basic.TradeStateStatusHalfSuccess)
 		if err != nil {
-			fastRollBack(ctx, state, tradeTxItems)
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+			return err
+		}
+		if !affect {
+			currentState, err := GetTradeState(ctx, state.TradeId, state.TradeScene, nil)
+			if err != nil {
+				fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+				return err
+			}
+			if currentState.Status == basic.TradeStateStatusSuccess || currentState.Status == basic.TradeStateStatusHalfSuccess {
+				//已经成功了，直接幂等结束
+				return nil
+			}
+			if currentState.Status == basic.TradeStateStatusRollbackDone {
+				return basic.StateMutationErr
+			}
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+			return basic.StateMutationErr
+		}
+		go func() {
+			for _, item := range increaseTxItems {
+				err := item.Exec(ctx)
+				if err != nil {
+					return
+				}
+			}
+			_, _ = UpdateTradeStateStatusWithAffect(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusHalfSuccess, basic.TradeStateStatusSuccess)
+		}()
+		return nil
+	}
+
+	for _, item := range increaseTxItems {
+		err = item.Exec(ctx)
+		if err != nil {
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
 			return err
 		}
 	}
@@ -33,14 +72,14 @@ func TxWrapper(ctx context.Context, state *model.TradeState, tradeTxItems []*Tra
 	affect, err := UpdateTradeStateStatusWithAffect(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusDoing, basic.TradeStateStatusSuccess)
 	if err != nil {
 		//这个时候不知道到底是什么状态，直接按照最坏结果处理
-		fastRollBack(ctx, state, tradeTxItems)
+		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
 		return err
 	}
 	if !affect {
 		currentState, err := GetTradeState(ctx, state.TradeId, state.TradeScene, nil)
 		if err != nil {
 			//这个时候不知道到底是什么状态，直接按照最坏结果处理
-			fastRollBack(ctx, state, tradeTxItems)
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
 			return err
 		}
 		//success并不一定是最终态，但本次直接返回成功没有问题
@@ -52,7 +91,7 @@ func TxWrapper(ctx context.Context, state *model.TradeState, tradeTxItems []*Tra
 		if currentState.Status == basic.TradeStateStatusRollbackDone {
 			return basic.StateMutationErr
 		}
-		fastRollBack(ctx, state, tradeTxItems)
+		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
 		return basic.StateMutationErr
 	}
 	return nil
@@ -60,7 +99,7 @@ func TxWrapper(ctx context.Context, state *model.TradeState, tradeTxItems []*Tra
 
 // WalletDBTX 事务
 func WalletDBTX(ctx context.Context, fn func(context.Context, *gorm.DB) error) error {
-	tx := conf.GetCoinTradeWriteDB(ctx).Begin()
+	tx := basic.GetCoinTradeWriteDB(ctx).Begin()
 	if tx.Error != nil {
 		return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(tx.Error, "[coin-trade] begin tx failed"))
 	}
@@ -70,7 +109,7 @@ func WalletDBTX(ctx context.Context, fn func(context.Context, *gorm.DB) error) e
 		}
 	}()
 	if err := fn(ctx, tx); err != nil {
-		if err = tx.Rollback().Error; err != nil {
+		if err := tx.Rollback().Error; err != nil {
 			return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(err, "[coin-trade] rollback tx failed"))
 		}
 		return err
@@ -88,11 +127,11 @@ func fastRollBack(ctx context.Context, state *model.TradeState, singles []*Trade
 		return
 	}
 	if !affect {
-		//已经有回滚中的操作，直接返回，如果回滚中的操作失败，本身会重试推进回滚
+		//已经有回滚中的操作，直接返回，如果回滚中的操作失败，会有重试推进回滚
 		return
 	}
 	for _, tx := range singles {
-		err = tx.Rollback(ctx, state.TradeId)
+		err = tx.Rollback(ctx)
 		if err != nil {
 			return
 		}

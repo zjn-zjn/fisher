@@ -46,12 +46,12 @@ const (
 const (
 	TradeStateStatusDoing         TradeStateStatus = 1 //交易中
 	TradeStateStatusRollbackDoing TradeStateStatus = 2 //回滚中
-	TradeStateStatusHalfSuccess   TradeStateStatus = 3 //TODO 部分成功(可以持续推进成成功的) 暂未实现
+	TradeStateStatusHalfSuccess   TradeStateStatus = 3 //半成功
 	TradeStateStatusSuccess       TradeStateStatus = 4 //交易成功
 	TradeStateStatusRollbackDone  TradeStateStatus = 5 //回滚完成
 )
 
-func InitOfficialWallet(officialWalletStepVal, officialWalletMaxVal int64) error {
+func initOfficialWallet(officialWalletStepVal, officialWalletMaxVal int64) error {
 	if officialWalletMaxVal < officialWalletStepVal {
 		return errors.New("official wallet max is less than official wallet step")
 	}
@@ -68,15 +68,15 @@ func InitOfficialWallet(officialWalletStepVal, officialWalletMaxVal int64) error
 	return nil
 }
 
-func InitTradeStateSplitNum(num int64) {
+func initTradeStateSplitNum(num int64) {
 	tradeStateSplitNum = num
 }
 
-func InitTradeRecordSplitNum(num int64) {
+func initTradeRecordSplitNum(num int64) {
 	tradeRecordSplitNum = num
 }
 
-func InitWalletBagSplitNum(num int64) {
+func initWalletBagSplitNum(num int64) {
 	walletBagSplitNum = num
 }
 

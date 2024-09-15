@@ -2,7 +2,6 @@ package dao
 
 import (
 	"context"
-
 	"gorm.io/gorm"
 
 	"github.com/zjn-zjn/coin-trade/basic"
@@ -43,15 +42,19 @@ func DeductionWallet(ctx context.Context, walletId, tradeId, amount int64, coinT
 			return basic.InsufficientAmountErr
 		}
 	}
+	originRecord, err := GetTradeRecord(ctx, walletId, tradeId, coinType, tradeScene, tradeType, changeType)
+	if err != nil {
+		return err
+	}
+	if originRecord != nil && originRecord.TradeStatus == tradeStatus {
+		//该操作已完成，直接幂等结束
+		return nil
+	}
 	err = WalletDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
-		originRecord, err := GetTradeRecord(ctx, walletId, tradeId, coinType, tradeScene, tradeType, changeType, db)
-		if err != nil {
-			return err
-		}
 		if originRecord == nil {
 			if tradeStatus == basic.TradeRecordStatusRollback {
 				//如果是回滚操作，需要确认之前是否执行过加的操作，未执行过加直接结束
-				tradeRecord := assembleTradeRecord(tradeId, walletId, amount, tradeScene, basic.TradeRecordStatusRollback, tradeType, changeType, coinType, comment)
+				tradeRecord := assembleTradeRecord(tradeId, walletId, amount, tradeScene, basic.TradeRecordStatusEmptyRollback, tradeType, changeType, coinType, comment)
 				if err = CreateTradeRecord(ctx, &tradeRecord, db); err != nil {
 					return err
 				}
@@ -62,10 +65,6 @@ func DeductionWallet(ctx context.Context, walletId, tradeId, amount int64, coinT
 			if err = CreateTradeRecord(ctx, &tradeRecord, db); err != nil {
 				return err
 			}
-		}
-		if originRecord != nil && originRecord.TradeStatus == tradeStatus {
-			//该操作已完成，直接幂等结束
-			return nil
 		}
 		if tradeStatus == basic.TradeRecordStatusNormal {
 			//如果是正常操作，需要校验是否有同等的回滚操作已执行，如有则直接报错返回！！！！
@@ -113,15 +112,19 @@ func IncreaseWallet(ctx context.Context, walletId, tradeId, amount int64, coinTy
 	if err != nil {
 		return err
 	}
+	originRecord, err := GetTradeRecord(ctx, walletId, tradeId, coinType, tradeScene, tradeType, changeType)
+	if err != nil {
+		return err
+	}
+	if originRecord != nil && originRecord.TradeStatus == tradeStatus {
+		//该操作已完成，直接幂等结束
+		return nil
+	}
 	err = WalletDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
-		originRecord, err := GetTradeRecord(ctx, walletId, tradeId, coinType, tradeScene, tradeType, changeType, db)
-		if err != nil {
-			return err
-		}
 		if originRecord == nil {
 			if tradeStatus == basic.TradeRecordStatusRollback {
 				//如果是回滚操作，需要确认之前是否执行过减的操作，未执行过减直接结束
-				tradeRecord := assembleTradeRecord(tradeId, walletId, amount, tradeScene, basic.TradeRecordStatusRollback, tradeType, changeType, coinType, comment)
+				tradeRecord := assembleTradeRecord(tradeId, walletId, amount, tradeScene, basic.TradeRecordStatusEmptyRollback, tradeType, changeType, coinType, comment)
 				if err = CreateTradeRecord(ctx, &tradeRecord, db); err != nil {
 					return err
 				}
@@ -131,10 +134,6 @@ func IncreaseWallet(ctx context.Context, walletId, tradeId, amount int64, coinTy
 			if err = CreateTradeRecord(ctx, &tradeRecord, db); err != nil {
 				return err
 			}
-		}
-		if originRecord != nil && originRecord.TradeStatus == tradeStatus {
-			//该操作已完成，直接幂等结束
-			return nil
 		}
 		if tradeStatus == basic.TradeRecordStatusNormal {
 			//如果是正常操作，需要校验是否有同等的回滚操作已执行，如有则直接报错返回！！！！
@@ -158,7 +157,7 @@ func IncreaseWallet(ctx context.Context, walletId, tradeId, amount int64, coinTy
 			//如果金额是0，直接成功返回(一般用于某些官方账号加0操作，只记录交易不加钱)
 			return nil
 		}
-		return addWalletAmount(ctx, walletId, amount, coinType, tradeStatus, db)
+		return increaseWalletAmount(ctx, walletId, amount, coinType, db)
 	})
 	if err != nil {
 		return err

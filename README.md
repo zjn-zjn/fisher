@@ -21,3 +21,5 @@ service.CoinTradeInspection 交易检查推进
 ## 备注
 
 推荐使用数据库事务隔离级别：`READ-COMMITTED`
+
+务必保证不同订单之间的trade_id和trade_scene联合唯一

@@ -3,6 +3,7 @@ CREATE TABLE `trade_state`
     `id`             bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
     `trade_id`       bigint        NOT NULL COMMENT '交易ID',
     `trade_scene`    bigint        NOT NULL COMMENT '交易场景',
+    `inverse`        tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否反向交易',
     `from_wallet_id` bigint        NOT NULL COMMENT '扣款钱包ID',
     `from_amount`    bigint        NOT NULL COMMENT '扣款金额',
     `to_wallets`     varchar(5000) NOT NULL COMMENT '收款钱包信息列表',

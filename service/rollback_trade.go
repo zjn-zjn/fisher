@@ -31,7 +31,7 @@ func RollbackTrade(ctx context.Context, req *model.RollbackTradeReq) error {
 		}
 		if state == nil {
 			state = model.AssembleTradeState(nil, 0, req.TradeId,
-				0, req.TradeScene, basic.TradeStateStatusRollbackDone, 0, "empty rollback")
+				0, req.TradeScene, false, basic.TradeStateStatusRollbackDone, 0, "empty rollback")
 			//不存在, 有可能正在写入中，可能属于回滚早到的情况，记录一条空回滚成功，避免后到的交易正常执行
 			//举例 A调用B 超时，A触发回滚  由于网络问题，回滚先行到达B，交易后到达B
 			//如果回滚成功，不做记录，A认为回滚成功，那么交易到达B时可能会触发正常交易
@@ -61,19 +61,38 @@ func RollbackTrade(ctx context.Context, req *model.RollbackTradeReq) error {
 		}
 	}
 	//这里都是需要回滚的情况
-	//对扣减的钱包进行增
-	comment := fmt.Sprintf("rollback %s", state.Comment)
-	err = dao.IncreaseWallet(ctx, state.FromWalletId, state.TradeId, state.FromAmount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(state.TradeScene), comment)
-	if err != nil {
-		return err
+	if state.Inverse {
+		//对增的钱包进行扣减
+		err = dao.DeductionWallet(ctx, state.FromWalletId, state.TradeId, state.FromAmount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(state.TradeScene), fmt.Sprintf("rollback %s", state.Comment))
+		if err != nil {
+			return err
+		}
+		//对减的钱包进行增
+		for _, v := range state.ToWallets {
+			v := v
+			err = dao.IncreaseWallet(ctx, v.WalletId, state.TradeId, v.Amount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(v.AddType), fmt.Sprintf("rollback %s", v.Comment))
+			if err != nil {
+				return err
+			}
+		}
+		err = dao.UpdateTradeStateStatus(ctx, req.TradeId, req.TradeScene, basic.TradeStateStatusRollbackDoing, basic.TradeStateStatusRollbackDone)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	//对加的钱包进行扣减
 	for _, v := range state.ToWallets {
 		v := v
-		err = dao.DeductionWallet(ctx, v.WalletId, state.TradeId, v.Amount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(v.AddType), comment)
+		err = dao.DeductionWallet(ctx, v.WalletId, state.TradeId, v.Amount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(v.AddType), fmt.Sprintf("rollback %s", v.Comment))
 		if err != nil {
 			return err
 		}
+	}
+	//对扣减的钱包进行增
+	err = dao.IncreaseWallet(ctx, state.FromWalletId, state.TradeId, state.FromAmount, state.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(state.TradeScene), fmt.Sprintf("rollback %s", state.Comment))
+	if err != nil {
+		return err
 	}
 	err = dao.UpdateTradeStateStatus(ctx, req.TradeId, req.TradeScene, basic.TradeStateStatusRollbackDoing, basic.TradeStateStatusRollbackDone)
 	if err != nil {

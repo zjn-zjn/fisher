@@ -15,34 +15,34 @@ type TradeTxItem struct {
 	Rollback func(ctx context.Context) error
 }
 
-func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItem *TradeTxItem, increaseTxItems []*TradeTxItem, useHalfSuccess bool) error {
-
-	err := deductionTxItem.Exec(ctx)
-	if err != nil {
-		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
-		return err
+func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItems []*TradeTxItem, increaseTxItems []*TradeTxItem, useHalfSuccess bool) error {
+	for _, item := range deductionTxItems {
+		err := item.Exec(ctx)
+		if err != nil {
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
+			return err
+		}
 	}
 	if useHalfSuccess {
 		//由Doing到HalfSuccess
 		affect, err := UpdateTradeStateStatusWithAffect(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusDoing, basic.TradeStateStatusHalfSuccess)
 		if err != nil {
-			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 			return err
 		}
 		if !affect {
 			currentState, err := GetTradeState(ctx, state.TradeId, state.TradeScene, nil)
 			if err != nil {
-				fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+				fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 				return err
 			}
 			if currentState.Status == basic.TradeStateStatusSuccess || currentState.Status == basic.TradeStateStatusHalfSuccess {
 				//已经成功了，直接幂等结束
 				return nil
 			}
-			if currentState.Status == basic.TradeStateStatusRollbackDone {
-				return basic.StateMutationErr
+			if currentState.Status != basic.TradeStateStatusRollbackDone {
+				fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 			}
-			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
 			return basic.StateMutationErr
 		}
 		go func() {
@@ -58,9 +58,9 @@ func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItem *Tr
 	}
 
 	for _, item := range increaseTxItems {
-		err = item.Exec(ctx)
+		err := item.Exec(ctx)
 		if err != nil {
-			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 			return err
 		}
 	}
@@ -72,14 +72,14 @@ func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItem *Tr
 	affect, err := UpdateTradeStateStatusWithAffect(ctx, state.TradeId, state.TradeScene, basic.TradeStateStatusDoing, basic.TradeStateStatusSuccess)
 	if err != nil {
 		//这个时候不知道到底是什么状态，直接按照最坏结果处理
-		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 		return err
 	}
 	if !affect {
 		currentState, err := GetTradeState(ctx, state.TradeId, state.TradeScene, nil)
 		if err != nil {
 			//这个时候不知道到底是什么状态，直接按照最坏结果处理
-			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+			fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 			return err
 		}
 		//success并不一定是最终态，但本次直接返回成功没有问题
@@ -91,7 +91,7 @@ func TxWrapper(ctx context.Context, state *model.TradeState, deductionTxItem *Tr
 		if currentState.Status == basic.TradeStateStatusRollbackDone {
 			return basic.StateMutationErr
 		}
-		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItem))
+		fastRollBack(ctx, state, append(increaseTxItems, deductionTxItems...))
 		return basic.StateMutationErr
 	}
 	return nil

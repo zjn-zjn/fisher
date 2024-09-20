@@ -64,9 +64,22 @@ func processHalfSuccessState(ctx context.Context, state *model.TradeState) error
 
 // HalfSuccess的推进应该极力保证成功,所以没有回滚操作
 func tradeProcessHalfSuccessCoinTxSequences(state *model.TradeState) ([]dao.TradeTxItem, error) {
-	var txs = make([]dao.TradeTxItem, 0)
 	//扣除金额一定是已经成功，所以这里不会再有扣除动作
 	//增加金额
+	if state.Inverse {
+		return []dao.TradeTxItem{
+			{
+				Exec: func(ctx context.Context) error {
+					err := dao.IncreaseWallet(ctx, state.FromWalletId, state.TradeId, state.FromAmount, state.CoinType, state.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(state.TradeScene), state.Comment)
+					if err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+		}, nil
+	}
+	var txs = make([]dao.TradeTxItem, 0)
 	for _, toWalletInfo := range state.ToWallets {
 		txs = append(txs, dao.TradeTxItem{
 			Exec: func(ctx context.Context) error {

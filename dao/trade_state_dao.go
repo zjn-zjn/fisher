@@ -18,7 +18,7 @@ func GetOrCreateTradeState(ctx context.Context, req *model.CoinTradeReq) (*model
 			return basic.NewDBFailed(err)
 		}
 		if state == nil {
-			state = model.AssembleTradeState(req.ToWallets, req.FromWalletId, req.TradeId, req.FromAmount, req.TradeScene, basic.TradeStateStatusDoing, req.CoinType, req.Comment)
+			state = model.AssembleTradeState(req.ToWallets, req.FromWalletId, req.TradeId, req.FromAmount, req.TradeScene, req.Inverse, basic.TradeStateStatusDoing, req.CoinType, req.Comment)
 			if err = CreateTradeState(ctx, state, db); err != nil {
 				return err
 			}

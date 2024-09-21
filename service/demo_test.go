@@ -19,10 +19,10 @@ const (
 
 	OfficialWalletTypeFee basic.OfficialWalletType = 200000000
 
-	TradeSceneBuyGoods basic.TradeScene = 1
-
-	AddTypeSellGoodsIncome    basic.AddType = 1
-	AddTypeSellGoodsCopyright basic.AddType = 2
+	TradeSceneBuyGoods           basic.TradeScene = 1
+	ChangeTypeSpend              basic.ChangeType = 1
+	ChangeTypeSellGoodsIncome    basic.ChangeType = 2
+	ChangeTypeSellGoodsCopyright basic.ChangeType = 3
 )
 
 func Init(t *testing.T) {
@@ -48,24 +48,29 @@ func TestCoinTrade(t *testing.T) {
 	ctx := context.Background()
 	walletIdOne, walletIdTwo := int64(100000000001), int64(100000000002)
 	err := CoinTrade(ctx, &model.CoinTradeReq{
-		FromWalletId:   int64(OfficialWalletTypeBankWallet),
-		FromAmount:     100,
+		FromWallets: []*model.TradeWalletItem{
+			{
+				WalletId:   int64(OfficialWalletTypeBankWallet),
+				Amount:     100,
+				ChangeType: ChangeTypeSpend,
+				Comment:    "trade deduct",
+			},
+		},
 		TradeId:        1,
 		CoinType:       CoinTypeGold,
 		UseHalfSuccess: true,
-		Inverse:        false,
 		ToWallets: []*model.TradeWalletItem{
 			{
-				WalletId: walletIdOne,
-				Amount:   90,
-				AddType:  AddTypeSellGoodsIncome,
-				Comment:  "trade sell goods income",
+				WalletId:   walletIdOne,
+				Amount:     90,
+				ChangeType: ChangeTypeSellGoodsIncome,
+				Comment:    "trade sell goods income",
 			},
 			{
-				WalletId: walletIdTwo,
-				Amount:   10,
-				AddType:  AddTypeSellGoodsCopyright,
-				Comment:  "trade sell goods copyright",
+				WalletId:   walletIdTwo,
+				Amount:     10,
+				ChangeType: ChangeTypeSellGoodsCopyright,
+				Comment:    "trade sell goods copyright",
 			},
 		},
 		TradeScene: TradeSceneBuyGoods,

@@ -1,20 +1,18 @@
 CREATE TABLE `trade_state`
 (
-    `id`             bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
-    `trade_id`       bigint        NOT NULL COMMENT '交易ID',
-    `trade_scene`    bigint        NOT NULL COMMENT '交易场景',
-    `inverse`        tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否反向交易',
-    `from_wallet_id` bigint        NOT NULL COMMENT '扣款钱包ID',
-    `from_amount`    bigint        NOT NULL COMMENT '扣款金额',
-    `to_wallets`     varchar(5000) NOT NULL COMMENT '收款钱包信息列表',
-    `coin_type`      int           NOT NULL COMMENT '虚拟币类型',
-    `status`         int           NOT NULL COMMENT '状态 1-进行中 2-回滚中 3-半成功 4-成功 5-已回滚',
-    `comment`        varchar(1000) NOT NULL COMMENT '备注',
-    `created_at`     bigint        NOT NULL COMMENT '创建时间',
-    `updated_at`     bigint        NOT NULL COMMENT '更新时间',
+    `id`           bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `trade_id`     bigint        NOT NULL COMMENT '交易ID',
+    `trade_scene`  bigint        NOT NULL COMMENT '交易场景',
+    `from_wallets` varchar(5000) NOT NULL COMMENT '收款钱包信息列表',
+    `to_wallets`   varchar(5000) NOT NULL COMMENT '收款钱包信息列表',
+    `coin_type`    int           NOT NULL COMMENT '虚拟币类型',
+    `status`       int           NOT NULL COMMENT '状态 1-进行中 2-回滚中 3-半成功 4-成功 5-已回滚',
+    `comment`      varchar(1000) NOT NULL COMMENT '备注',
+    `created_at`   bigint        NOT NULL COMMENT '创建时间',
+    `updated_at`   bigint        NOT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`),
     unique index uk_trade_state (trade_id, trade_scene),
-    KEY              `status_updated_at_index` (`status`, `updated_at`)
+    KEY            `status_updated_at_index` (`status`, `updated_at`)
 ) COMMENT '交易状态表';
 
 CREATE TABLE `trade_record`
@@ -32,7 +30,8 @@ CREATE TABLE `trade_record`
     `created_at`   bigint        NOT NULL COMMENT '创建时间',
     `updated_at`   bigint        NOT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    unique index uk_trade_record (wallet_id, trade_id, coin_type, trade_scene, trade_type, change_type)
+    unique index uk_trade_record (wallet_id, trade_id, coin_type, trade_scene, trade_type, change_type),
+    KEY            `idx_trade_id` (`trade_id`)
 ) COMMENT '记录表';
 
 CREATE TABLE `wallet_bag`

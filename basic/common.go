@@ -7,8 +7,7 @@ import (
 )
 
 type TradeScene int           //交易场景
-type AddType int              //收款方虚拟币增加类型
-type ChangeType int           //付款方的traceScene和收款方的addType 合并字段
+type ChangeType int           //变更类型
 type TradeRecordStatus int    //交易状态
 type TradeType int            //交易类型 增加虚拟币或减少虚拟币
 type TradeStateStatus int     //交易状态
@@ -17,7 +16,7 @@ type OfficialWalletType int64 //官方钱包类型
 
 const (
 	DefaultOfficialWalletStep  = 100000000    //官方钱包类型步长 默认1亿
-	DefaultOfficialWalletMax   = 100000000000 //官方钱包最大值 默认1000亿
+	DefaultOfficialWalletMax   = 100000000000 //官方钱包最大值 默认1000亿，即1000个官方钱包
 	DefaultTradeStateSplitNum  = 1            //交易状态分表数量 默认1单表
 	DefaultTradeRecordSplitNum = 1            //交易记录分表数量 默认1单表
 	DefaultWalletBagSplitNum   = 1            //钱包分表数量 默认1单表

@@ -30,26 +30,31 @@ func TestExtreme(t *testing.T) {
 		go func() {
 			for i := 0; i < tradeNum; i++ {
 				req := &model.CoinTradeReq{
-					FromWalletId:   []int64{int64(OfficialWalletTypeBankWallet), int64(OfficialWalletTypeFee)}[random.IntN(2)],
-					FromAmount:     100,
+					FromWallets: []*model.TradeWalletItem{
+						{
+							WalletId:   []int64{int64(OfficialWalletTypeBankWallet), int64(OfficialWalletTypeFee)}[random.IntN(2)],
+							Amount:     100,
+							ChangeType: ChangeTypeSpend,
+							Comment:    "trade deduct",
+						},
+					},
 					TradeId:        int64(c*tradeNum + i + 1),
 					CoinType:       CoinTypeGold,
 					UseHalfSuccess: []bool{true, false}[random.IntN(2)],
-					Inverse:        []bool{true, false}[random.IntN(2)],
 					TradeScene:     TradeSceneBuyGoods,
 					Comment:        "trade goods",
 					ToWallets: []*model.TradeWalletItem{
 						{
-							WalletId: walletIdBase,
-							Amount:   90,
-							AddType:  AddTypeSellGoodsIncome,
-							Comment:  "trade sell goods income",
+							WalletId:   walletIdBase,
+							Amount:     90,
+							ChangeType: ChangeTypeSellGoodsIncome,
+							Comment:    "trade sell goods income",
 						},
 						{
-							WalletId: walletId2Base,
-							Amount:   10,
-							AddType:  AddTypeSellGoodsIncome,
-							Comment:  "trade sell goods copyright",
+							WalletId:   walletId2Base,
+							Amount:     10,
+							ChangeType: ChangeTypeSellGoodsCopyright,
+							Comment:    "trade sell goods copyright",
 						},
 					},
 				}
@@ -132,7 +137,7 @@ func TestFindBadCase(t *testing.T) {
 				var fromAmount, toAmount int64
 				for _, record := range records {
 					if record.TradeStatus != basic.TradeRecordStatusNormal {
-						t.Logf("err trade %d record %d status %d %v", state.TradeId, record.ID, record.TradeStatus, state.Inverse)
+						t.Logf("err trade %d record %d status %d", state.TradeId, record.ID, record.TradeStatus)
 						continue
 					}
 					if record.TradeType == basic.TradeTypeDeduct {
@@ -142,7 +147,7 @@ func TestFindBadCase(t *testing.T) {
 					}
 				}
 				if fromAmount != toAmount {
-					t.Errorf("err trade %d amount %d %d %v", state.TradeId, fromAmount, toAmount, state.Inverse)
+					t.Errorf("err trade %d amount %d %d", state.TradeId, fromAmount, toAmount)
 					continue
 				}
 				continue
@@ -157,7 +162,7 @@ func TestFindBadCase(t *testing.T) {
 				var fromAmount, toAmount int64
 				for _, record := range records {
 					if record.TradeStatus == basic.TradeRecordStatusNormal {
-						t.Logf("err trade %d record %d status %d %v", state.TradeId, record.ID, record.TradeStatus, state.Inverse)
+						t.Logf("err trade %d record %d status %d", state.TradeId, record.ID, record.TradeStatus)
 						continue
 					}
 					if record.TradeType == basic.TradeTypeDeduct {
@@ -167,12 +172,12 @@ func TestFindBadCase(t *testing.T) {
 					}
 				}
 				if fromAmount != toAmount {
-					t.Logf("err trade %d amount %d %d %v", state.TradeId, fromAmount, toAmount, state.Inverse)
+					t.Logf("err trade %d amount %d %d", state.TradeId, fromAmount, toAmount)
 					continue
 				}
 				continue
 			}
-			t.Logf("err trade %d status %d %v", state.TradeId, state.Status, state.Inverse)
+			t.Logf("err trade %d status %d", state.TradeId, state.Status)
 		}
 		if minId >= maxId {
 			break

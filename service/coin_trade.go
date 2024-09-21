@@ -67,8 +67,11 @@ func handleOfficialWallet(req *model.CoinTradeReq) {
 	}
 	musk := basic.GetRemain(*walletId)
 	//修改官方账户
-	if basic.IsOfficialWallet(req.FromWalletId) {
-		req.FromWalletId = basic.GetMixOfficialWalletId(req.FromWalletId, musk)
+	for _, v := range req.FromWallets {
+		v := v
+		if basic.IsOfficialWallet(v.WalletId) {
+			v.WalletId = basic.GetMixOfficialWalletId(v.WalletId, musk)
+		}
 	}
 	for _, v := range req.ToWallets {
 		v := v
@@ -79,8 +82,11 @@ func handleOfficialWallet(req *model.CoinTradeReq) {
 }
 
 func findFirstWalletId(req *model.CoinTradeReq) *int64 {
-	if !basic.IsOfficialWallet(req.FromWalletId) {
-		return &req.FromWalletId
+	for _, v := range req.FromWallets {
+		walletId := v.WalletId
+		if !basic.IsOfficialWallet(walletId) {
+			return &walletId
+		}
 	}
 	for _, v := range req.ToWallets {
 		walletId := v.WalletId
@@ -92,18 +98,6 @@ func findFirstWalletId(req *model.CoinTradeReq) *int64 {
 }
 
 func checkArgs(req *model.CoinTradeReq) error {
-	if req.FromWalletId <= 0 {
-		return errors.New("from wallet illegal")
-	}
-	if basic.IsOfficialWallet(req.FromWalletId) {
-		//官方钱包的传入必须用枚举，由交易系统离散
-		if !basic.CheckTradeOfficialWallet(req.FromWalletId) {
-			return fmt.Errorf("offical wallet illegal wallet:%d", req.FromWalletId)
-		}
-	}
-	if req.FromAmount <= 0 {
-		return errors.New("from amount illegal")
-	}
 	if req.TradeId <= 0 {
 		return errors.New("tradeId illegal")
 	}
@@ -113,13 +107,37 @@ func checkArgs(req *model.CoinTradeReq) error {
 	if req.TradeScene <= 0 {
 		return errors.New("trade scene illegal")
 	}
+	if len(req.FromWallets) <= 0 {
+		return errors.New("from wallets illegal")
+	}
 	if len(req.ToWallets) <= 0 {
 		return errors.New("to wallets illegal")
 	}
-	var totalAmount int64
+	var fromTotalAmount int64
+	var totalToAmount int64
 	uniqueCheck := make(map[string]bool)
-	fromWalletUniqueKey := fmt.Sprintf(walletStateUniqueKey, req.FromWalletId, req.TradeScene)
-	uniqueCheck[fromWalletUniqueKey] = true
+	for _, fromWalletInfo := range req.FromWallets {
+		if fromWalletInfo.WalletId <= 0 {
+			return fmt.Errorf("[coin-trade] from wallet illegal from_wallet:%d", fromWalletInfo.WalletId)
+		}
+		if basic.IsOfficialWallet(fromWalletInfo.WalletId) {
+			//官方钱包的传入必须用枚举，由交易系统离散
+			if !basic.CheckTradeOfficialWallet(fromWalletInfo.WalletId) {
+				return fmt.Errorf("[coin-trade] offical wallet illegal from_wallet:%d", fromWalletInfo.WalletId)
+			}
+		}
+		//非官方钱包不允许操作为0的金额
+		if fromWalletInfo.Amount <= 0 && !basic.IsOfficialWallet(fromWalletInfo.WalletId) {
+			return fmt.Errorf("[coin-trade] from amount illegal from_amount:%d", fromWalletInfo.Amount)
+		}
+		fromTotalAmount = fromWalletInfo.Amount + fromTotalAmount
+		//用于校验钱包交易场景是否重复，如：钱包A1向A2和A3转账，A1 A2 A3的扣钱和加钱场景不应有重叠(比如A2 A3不能都是版权结算)
+		fromWalletUniqueKey := fmt.Sprintf(walletStateUniqueKey, fromWalletInfo.WalletId, fromWalletInfo.ChangeType)
+		if _, ok := uniqueCheck[fromWalletUniqueKey]; ok {
+			return fmt.Errorf("[coin-trade] wallet duplicate change type wallet:%d", fromWalletInfo.WalletId)
+		}
+		uniqueCheck[fromWalletUniqueKey] = true
+	}
 	for _, toWalletInfo := range req.ToWallets {
 		if toWalletInfo.WalletId <= 0 {
 			return fmt.Errorf("[coin-trade] to wallet illegal to_wallet:%d", toWalletInfo.WalletId)
@@ -134,54 +152,43 @@ func checkArgs(req *model.CoinTradeReq) error {
 		if toWalletInfo.Amount <= 0 && !basic.IsOfficialWallet(toWalletInfo.WalletId) {
 			return fmt.Errorf("[coin-trade] to amount illegal to_amount:%d", toWalletInfo.Amount)
 		}
-		totalAmount = toWalletInfo.Amount + totalAmount
+		totalToAmount = toWalletInfo.Amount + totalToAmount
 		//用于校验钱包交易场景是否重复，如：钱包A1向A2和A3转账，A1 A2 A3的扣钱和加钱场景不应有重叠(比如A2 A3不能都是版权结算)
-		toWalletUniqueKey := fmt.Sprintf(walletStateUniqueKey, toWalletInfo.WalletId, toWalletInfo.AddType)
+		toWalletUniqueKey := fmt.Sprintf(walletStateUniqueKey, toWalletInfo.WalletId, toWalletInfo.ChangeType)
 		if _, ok := uniqueCheck[toWalletUniqueKey]; ok {
 			return fmt.Errorf("[coin-trade] wallet duplicate change type wallet:%d", toWalletInfo.WalletId)
 		}
 		uniqueCheck[toWalletUniqueKey] = true
 	}
-	if totalAmount != req.FromAmount {
+	if fromTotalAmount != totalToAmount {
 		return errors.New("[coin-trade] unable to balance accounts")
 	}
 	return nil
 }
 
 func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, []*dao.TradeTxItem, error) {
-	//扣除金额
-	fromTx := &dao.TradeTxItem{
-		Exec: func(ctx context.Context) error {
-			if req.Inverse {
-				err := dao.IncreaseWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(req.TradeScene), req.Comment)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-			err := dao.DeductionWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(req.TradeScene), req.Comment)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-		Rollback: func(ctx context.Context) error {
-			if req.Inverse {
-				err := dao.DeductionWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(req.TradeScene), req.Comment)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-			err := dao.IncreaseWallet(ctx, req.FromWalletId, req.TradeId, req.FromAmount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(req.TradeScene), req.Comment)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-	}
-	//增加金额
+	var fromTxs []*dao.TradeTxItem
 	var toTxs []*dao.TradeTxItem
+
+	for _, fromWalletInfo := range req.FromWallets {
+		fromWalletInfo := fromWalletInfo
+		fromTxs = append(fromTxs, &dao.TradeTxItem{
+			Exec: func(ctx context.Context) error {
+				err := dao.DeductionWallet(ctx, fromWalletInfo.WalletId, req.TradeId, fromWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, fromWalletInfo.ChangeType, req.Comment)
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			Rollback: func(ctx context.Context) error {
+				err := dao.IncreaseWallet(ctx, fromWalletInfo.WalletId, req.TradeId, fromWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, fromWalletInfo.ChangeType, req.Comment)
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+		})
+	}
 	for _, toWalletInfo := range req.ToWallets {
 		toWalletInfo := toWalletInfo
 		toTxs = append(toTxs, &dao.TradeTxItem{
@@ -190,28 +197,14 @@ func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, []*dao.Tra
 				if toWalletInfo.Comment != "" {
 					comment = toWalletInfo.Comment
 				}
-				if req.Inverse {
-					err := dao.DeductionWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(toWalletInfo.AddType), comment)
-					if err != nil {
-						return err
-					}
-					return nil
-				}
-				err := dao.IncreaseWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, basic.ChangeType(toWalletInfo.AddType), comment)
+				err := dao.IncreaseWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusNormal, toWalletInfo.ChangeType, comment)
 				if err != nil {
 					return err
 				}
 				return nil
 			},
 			Rollback: func(ctx context.Context) error {
-				if req.Inverse {
-					err := dao.IncreaseWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(toWalletInfo.AddType), req.Comment)
-					if err != nil {
-						return err
-					}
-					return nil
-				}
-				err := dao.DeductionWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, basic.ChangeType(toWalletInfo.AddType), req.Comment)
+				err := dao.DeductionWallet(ctx, toWalletInfo.WalletId, req.TradeId, toWalletInfo.Amount, req.CoinType, req.TradeScene, basic.TradeRecordStatusRollback, toWalletInfo.ChangeType, req.Comment)
 				if err != nil {
 					return err
 				}
@@ -219,8 +212,5 @@ func coinTradeSequences(req *model.CoinTradeReq) ([]*dao.TradeTxItem, []*dao.Tra
 			},
 		})
 	}
-	if req.Inverse {
-		return toTxs, []*dao.TradeTxItem{fromTx}, nil
-	}
-	return []*dao.TradeTxItem{fromTx}, toTxs, nil
+	return fromTxs, toTxs, nil
 }

@@ -3,9 +3,10 @@ package dao
 import (
 	"context"
 
+	"gorm.io/gorm"
+
 	"github.com/zjn-zjn/fisher/basic"
 	"github.com/zjn-zjn/fisher/model"
-	"gorm.io/gorm"
 )
 
 // GetOrCreateState 获取转移记录，如果不存在则创建

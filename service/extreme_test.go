@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"github.com/zjn-zjn/fisher/basic"
-	"github.com/zjn-zjn/fisher/model"
 	"math/rand/v2"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/zjn-zjn/fisher/basic"
+	"github.com/zjn-zjn/fisher/model"
 )
 
 const (

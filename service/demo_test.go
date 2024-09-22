@@ -8,21 +8,21 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/zjn-zjn/coin-trade/basic"
-	"github.com/zjn-zjn/coin-trade/model"
+	"github.com/zjn-zjn/fisher/basic"
+	"github.com/zjn-zjn/fisher/model"
 )
 
 const (
-	CoinTypeGold basic.CoinType = 1
+	ItemTypeGold basic.ItemType = 1
 
-	OfficialWalletTypeBankWallet basic.OfficialWalletType = 100000000
+	OfficialBagTypeBankBag basic.OfficialBagType = 100000000
 
-	OfficialWalletTypeFee basic.OfficialWalletType = 200000000
+	OfficialBagTypeFee basic.OfficialBagType = 200000000
 
-	TradeSceneBuyGoods           basic.TradeScene = 1
-	ChangeTypeSpend              basic.ChangeType = 1
-	ChangeTypeSellGoodsIncome    basic.ChangeType = 2
-	ChangeTypeSellGoodsCopyright basic.ChangeType = 3
+	TransferSceneBuyGoods        basic.TransferScene = 1
+	ChangeTypeSpend              basic.ChangeType    = 1
+	ChangeTypeSellGoodsIncome    basic.ChangeType    = 2
+	ChangeTypeSellGoodsCopyright basic.ChangeType    = 3
 )
 
 func Init(t *testing.T) {
@@ -32,88 +32,88 @@ func Init(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect database: %v", err)
 	}
-	err = basic.InitWithConf(&basic.TradeConf{
-		DB:                  db,
-		TradeStateSplitNum:  1,
-		TradeRecordSplitNum: 1,
-		WalletBagSplitNum:   1,
+	err = basic.InitWithConf(&basic.TransferConf{
+		DB:             db,
+		StateSplitNum:  1,
+		RecordSplitNum: 1,
+		BagSplitNum:    1,
 	})
 	if err != nil {
 		t.Fatalf("failed to init conf: %v", err)
 	}
 }
 
-func TestCoinTrade(t *testing.T) {
+func TestTransfer(t *testing.T) {
 	Init(t)
 	ctx := context.Background()
-	walletIdOne, walletIdTwo := int64(100000000001), int64(100000000002)
-	err := CoinTrade(ctx, &model.CoinTradeReq{
-		FromWallets: []*model.TradeWalletItem{
+	bagIdOne, bagIdTwo := int64(100000000001), int64(100000000002)
+	err := Transfer(ctx, &model.TransferReq{
+		FromBags: []*model.TransferItem{
 			{
-				WalletId:   int64(OfficialWalletTypeBankWallet),
+				BagId:      int64(OfficialBagTypeBankBag),
 				Amount:     100,
 				ChangeType: ChangeTypeSpend,
-				Comment:    "trade deduct",
+				Comment:    "transfer deduct",
 			},
 		},
-		TradeId:        1,
-		CoinType:       CoinTypeGold,
+		TransferId:     1,
+		ItemType:       ItemTypeGold,
 		UseHalfSuccess: true,
-		ToWallets: []*model.TradeWalletItem{
+		ToBags: []*model.TransferItem{
 			{
-				WalletId:   walletIdOne,
+				BagId:      bagIdOne,
 				Amount:     90,
 				ChangeType: ChangeTypeSellGoodsIncome,
-				Comment:    "trade sell goods income",
+				Comment:    "transfer sell goods income",
 			},
 			{
-				WalletId:   walletIdTwo,
+				BagId:      bagIdTwo,
 				Amount:     10,
 				ChangeType: ChangeTypeSellGoodsCopyright,
-				Comment:    "trade sell goods copyright",
+				Comment:    "transfer sell goods copyright",
 			},
 		},
-		TradeScene: TradeSceneBuyGoods,
-		Comment:    "trade goods",
+		TransferScene: TransferSceneBuyGoods,
+		Comment:       "transfer goods",
 	})
 	if err != nil {
 		if basic.Is(err, basic.AlreadyRolledBackErr) {
-			t.Logf("trade has been rolled back: %v", err)
+			t.Logf("transfer has been rolled back: %v", err)
 		}
 		if basic.Is(err, basic.ParamsErr) {
-			t.Logf("trade params error: %v", err)
+			t.Logf("transfer params error: %v", err)
 		}
 		if basic.Is(err, basic.DBFailedErr) {
-			t.Logf("trade db failed: %v", err)
+			t.Logf("transfer db failed: %v", err)
 		}
 		if basic.Is(err, basic.StateMutationErr) {
-			t.Logf("trade state mutation error: %v", err)
+			t.Logf("transfer state mutation error: %v", err)
 		}
 		if basic.Is(err, basic.InsufficientAmountErr) {
-			t.Logf("trade insufficient amount: %v", err)
+			t.Logf("transfer insufficient amount: %v", err)
 		}
-		t.Logf("failed to coin trade: %v", err)
+		t.Logf("failed to item transfer: %v", err)
 	}
 	time.Sleep(time.Second)
 }
 
-func TestRollbackTrade(t *testing.T) {
+func TestRollback(t *testing.T) {
 	Init(t)
 	ctx := context.Background()
-	err := RollbackTrade(ctx, &model.RollbackTradeReq{
-		TradeId:    1,
-		TradeScene: TradeSceneBuyGoods,
+	err := Rollback(ctx, &model.RollbackReq{
+		TransferId:    1,
+		TransferScene: TransferSceneBuyGoods,
 	})
 	if err != nil {
-		t.Fatalf("failed to rollback trade: %v", err)
+		t.Fatalf("failed to rollback transfer: %v", err)
 	}
 }
 
-func TestCoinTradeInspection(t *testing.T) {
+func TestInspection(t *testing.T) {
 	Init(t)
 	ctx := context.Background()
-	errs := CoinTradeInspection(ctx, time.Now().UnixMilli())
+	errs := Inspection(ctx, time.Now().UnixMilli())
 	if len(errs) > 0 {
-		t.Fatalf("failed to coin trade inspection: %v", errs)
+		t.Fatalf("failed to item transfer inspection: %v", errs)
 	}
 }

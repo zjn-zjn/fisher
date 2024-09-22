@@ -6,119 +6,119 @@ import (
 	"github.com/pkg/errors"
 )
 
-type TradeScene int           //交易场景
-type ChangeType int           //变更类型
-type TradeRecordStatus int    //交易状态
-type TradeType int            //交易类型 增加虚拟币或减少虚拟币
-type TradeStateStatus int     //交易状态
-type CoinType int             //虚拟币类型
-type OfficialWalletType int64 //官方钱包类型
+type TransferScene int     //转移场景
+type ChangeType int        //变更类型
+type RecordStatus int      //转移状态
+type RecordType int        //转移类型 增加物品或减少物品
+type StateStatus int       //转移状态
+type ItemType int          //物品类型
+type OfficialBagType int64 //官方背包类型
 
 const (
-	DefaultOfficialWalletStep  = 100000000    //官方钱包类型步长 默认1亿
-	DefaultOfficialWalletMax   = 100000000000 //官方钱包最大值 默认1000亿，即1000个官方钱包
-	DefaultTradeStateSplitNum  = 1            //交易状态分表数量 默认1单表
-	DefaultTradeRecordSplitNum = 1            //交易记录分表数量 默认1单表
-	DefaultWalletBagSplitNum   = 1            //钱包分表数量 默认1单表
+	DefaultOfficialBagStep = 100000000    //官方背包类型步长 默认1亿
+	DefaultOfficialBagMax  = 100000000000 //官方背包最大值 默认1000亿，即1000个官方背包
+	DefaultStateSplitNum   = 1            //转移状态分表数量 默认1单表
+	DefaultRecordSplitNum  = 1            //转移记录分表数量 默认1单表
+	DefaultBagSplitNum     = 1            //背包分表数量 默认1单表
 )
 
 var (
-	officialWalletStep int64 //官方钱包类型步长
-	officialWalletMax  int64 //官方钱包最大值
+	officialBagStep int64 //官方背包类型步长
+	officialBagMax  int64 //官方背包最大值
 
-	tradeStateSplitNum  int64 //交易状态分表数量
-	tradeRecordSplitNum int64 //交易记录分表数量
-	walletBagSplitNum   int64 //钱包分表数量
+	stateSplitNum  int64 //转移状态分表数量
+	recordSplitNum int64 //转移记录分表数量
+	bagSplitNum    int64 //背包分表数量
 )
 
 const (
-	TradeRecordStatusNormal        TradeRecordStatus = 1 //正常
-	TradeRecordStatusRollback      TradeRecordStatus = 2 //回滚
-	TradeRecordStatusEmptyRollback TradeRecordStatus = 3 //空回滚
+	RecordStatusNormal        RecordStatus = 1 //正常
+	RecordStatusRollback      RecordStatus = 2 //回滚
+	RecordStatusEmptyRollback RecordStatus = 3 //空回滚
 )
 
 const (
-	TradeTypeAdd    TradeType = 1 //增加
-	TradeTypeDeduct TradeType = 2 //减少
+	RecordTypeAdd    RecordType = 1 //增加
+	RecordTypeDeduct RecordType = 2 //减少
 )
 
 const (
-	TradeStateStatusDoing         TradeStateStatus = 1 //交易中
-	TradeStateStatusRollbackDoing TradeStateStatus = 2 //回滚中
-	TradeStateStatusHalfSuccess   TradeStateStatus = 3 //半成功
-	TradeStateStatusSuccess       TradeStateStatus = 4 //交易成功
-	TradeStateStatusRollbackDone  TradeStateStatus = 5 //回滚完成
+	StateStatusDoing         StateStatus = 1 //转移中
+	StateStatusRollbackDoing StateStatus = 2 //回滚中
+	StateStatusHalfSuccess   StateStatus = 3 //半成功
+	StateStatusSuccess       StateStatus = 4 //转移成功
+	StateStatusRollbackDone  StateStatus = 5 //回滚完成
 )
 
-func initOfficialWallet(officialWalletStepVal, officialWalletMaxVal int64) error {
-	if officialWalletMaxVal < officialWalletStepVal {
-		return errors.New("official wallet max is less than official wallet step")
+func initOfficialBag(officialBagStepVal, officialBagMaxVal int64) error {
+	if officialBagMaxVal < officialBagStepVal {
+		return errors.New("official bag max is less than official bag step")
 	}
-	if officialWalletStepVal <= 0 {
-		officialWalletStep = DefaultOfficialWalletStep
+	if officialBagStepVal <= 0 {
+		officialBagStep = DefaultOfficialBagStep
 	} else {
-		officialWalletStep = officialWalletStepVal
+		officialBagStep = officialBagStepVal
 	}
-	if officialWalletMaxVal <= 0 {
-		officialWalletMax = DefaultOfficialWalletMax
+	if officialBagMaxVal <= 0 {
+		officialBagMax = DefaultOfficialBagMax
 	} else {
-		officialWalletMax = officialWalletMaxVal
+		officialBagMax = officialBagMaxVal
 	}
 	return nil
 }
 
-func initTradeStateSplitNum(num int64) {
-	tradeStateSplitNum = num
+func initStateSplitNum(num int64) {
+	stateSplitNum = num
 }
 
-func initTradeRecordSplitNum(num int64) {
-	tradeRecordSplitNum = num
+func initRecordSplitNum(num int64) {
+	recordSplitNum = num
 }
 
-func initWalletBagSplitNum(num int64) {
-	walletBagSplitNum = num
+func initBagSplitNum(num int64) {
+	bagSplitNum = num
 }
 
-func IsOfficialWallet(walletId int64) bool {
-	return walletId <= officialWalletMax && walletId > 0
+func IsOfficialBag(bagId int64) bool {
+	return bagId <= officialBagMax && bagId > 0
 }
 
-func GetRemain(walletId int64) int64 {
-	return walletId % officialWalletStep
+func GetRemain(bagId int64) int64 {
+	return bagId % officialBagStep
 }
 
-func GetMixOfficialWalletId(officialWalletId, remain int64) int64 {
+func GetMixOfficialBagId(officialBagId, remain int64) int64 {
 	if remain == 0 {
-		return officialWalletId
+		return officialBagId
 	}
-	return officialWalletId - officialWalletStep + remain
+	return officialBagId - officialBagStep + remain
 }
 
-func CheckTradeOfficialWallet(walletId int64) bool {
-	return walletId%officialWalletStep == 0
+func CheckTransferOfficialBag(bagId int64) bool {
+	return bagId%officialBagStep == 0
 }
 
-func GetTradeStateTableSuffix(fromWalletId int64) string {
-	if tradeStateSplitNum <= 1 {
+func GetStateTableSuffix(fromBagId int64) string {
+	if stateSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", fromWalletId%tradeStateSplitNum)
+	return fmt.Sprintf("_%d", fromBagId%stateSplitNum)
 }
 
-func GetTradeRecordTableSuffix(walletId int64) string {
-	if tradeRecordSplitNum <= 1 {
+func GetRecordTableSuffix(bagId int64) string {
+	if recordSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", walletId%tradeRecordSplitNum)
+	return fmt.Sprintf("_%d", bagId%recordSplitNum)
 }
 
-func GetWalletBagTableSuffix(walletId int64) string {
-	if walletBagSplitNum <= 1 {
+func GetBagTableSuffix(bagId int64) string {
+	if bagSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", walletId%walletBagSplitNum)
+	return fmt.Sprintf("_%d", bagId%bagSplitNum)
 }
 
-func GetTradeStateTableSplitNum() int64 {
-	return tradeStateSplitNum
+func GetStateTableSplitNum() int64 {
+	return stateSplitNum
 }

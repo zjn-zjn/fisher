@@ -1,6 +1,6 @@
-# coin-trade
+# fisher
 
-coin trade with saga
+transfer with saga
 
 ## 表结构
 
@@ -10,16 +10,16 @@ conf/ddl.sql 为数据库表结构定义
 
 conf.InitWith*() 初始化配置
 
-## 交易方法
+## 转移方法
 
-service.CoinTrade 虚拟币交易
+service.Transfer 转移物品
 
-service.RollbackTrade 交易回滚
+service.Rollback 转移回滚
 
-service.CoinTradeInspection 交易检查推进
+service.TransferInspection 转移检查与推进
 
 ## 备注
 
 推荐使用数据库事务隔离级别：`READ-COMMITTED`
 
-务必保证不同订单之间的trade_id和trade_scene联合唯一
+务必保证不同转移之间的transfer_id和transfer_scene联合唯一

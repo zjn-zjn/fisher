@@ -23,24 +23,24 @@ var (
 	DBFailedErr           = New(DBFailedErrCode, "[fisher] db failed")
 )
 
-type TransferErr struct {
+type FisherErr struct {
 	Code ErrCode
 	Msg  string
 }
 
-func (e *TransferErr) Error() string {
+func (e *FisherErr) Error() string {
 	return fmt.Sprintf("code: %d, msg: %s", e.Code, e.Msg)
 }
 
 func New(code ErrCode, msg string) error {
-	return &TransferErr{
+	return &FisherErr{
 		Code: code,
 		Msg:  msg,
 	}
 }
 
 func NewWithErr(code ErrCode, err error) error {
-	return &TransferErr{
+	return &FisherErr{
 		Code: code,
 		Msg:  err.Error(),
 	}
@@ -58,9 +58,9 @@ func Is(err, target error) bool {
 	if errors.Is(err, target) {
 		return true
 	}
-	var e *TransferErr
+	var e *FisherErr
 	if errors.As(err, &e) {
-		if e.Code == target.(*TransferErr).Code {
+		if e.Code == target.(*FisherErr).Code {
 			return true
 		}
 	}

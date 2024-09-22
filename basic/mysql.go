@@ -8,17 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
-var coinTradeDB *gorm.DB
+var fisherDB *gorm.DB
 
-// initCoinTradeDB 初始化虚拟币交易数据库
-func initCoinTradeDB(db *gorm.DB) {
-	coinTradeDB = db
+// initItemTransferDB 初始化物品转移数据库
+func initItemTransferDB(db *gorm.DB) {
+	fisherDB = db
 }
 
-func GetCoinTradeWriteDB(ctx context.Context) *gorm.DB {
-	return coinTradeDB.Clauses(dbresolver.Write).WithContext(ctx)
+func GetWriteDB(ctx context.Context) *gorm.DB {
+	return fisherDB.Clauses(dbresolver.Write).WithContext(ctx)
 }
 
-func GetCoinTradeReadDB(ctx context.Context) *gorm.DB {
-	return coinTradeDB.Clauses(dbresolver.Read).WithContext(ctx)
+func GetReadDB(ctx context.Context) *gorm.DB {
+	return fisherDB.Clauses(dbresolver.Read).WithContext(ctx)
 }

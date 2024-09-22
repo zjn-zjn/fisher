@@ -1,4 +1,4 @@
-module github.com/zjn-zjn/coin-trade
+module github.com/zjn-zjn/fisher
 
 go 1.22
 

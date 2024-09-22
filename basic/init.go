@@ -5,42 +5,42 @@ import (
 	"gorm.io/gorm"
 )
 
-type TradeConf struct {
-	DB                  *gorm.DB `json:"-"`
-	TradeStateSplitNum  int64    `json:"trade_state_split_num"`  //交易状态分表数量 按交易ID取模分表
-	TradeRecordSplitNum int64    `json:"trade_record_split_num"` //交易记录分表数量 按钱包ID取模分表
-	WalletBagSplitNum   int64    `json:"wallet_bag_split_num"`   //钱包分表数量 按钱包ID取模分表
-	OfficialWalletStep  int64    `json:"official_wallet_step"`   //官方钱包类型步长
-	OfficialWalletMax   int64    `json:"official_wallet_max"`    //官方钱包最大值
+type TransferConf struct {
+	DB              *gorm.DB `json:"-"`
+	StateSplitNum   int64    `json:"state_split_num"`   //转移状态分表数量 按转移ID取模分表
+	RecordSplitNum  int64    `json:"record_split_num"`  //转移记录分表数量 按背包ID取模分表
+	BagSplitNum     int64    `json:"bag_split_num"`     //背包分表数量 按背包ID取模分表
+	OfficialBagStep int64    `json:"official_bag_step"` //官方背包类型步长
+	OfficialBagMax  int64    `json:"official_bag_max"`  //官方背包最大值
 }
 
 // InitWithDefault 使用默认配置初始化
 func InitWithDefault(db *gorm.DB) error {
-	return InitWithConf(&TradeConf{
-		DB:                  db,
-		TradeStateSplitNum:  DefaultTradeStateSplitNum,
-		TradeRecordSplitNum: DefaultTradeRecordSplitNum,
-		WalletBagSplitNum:   DefaultWalletBagSplitNum,
-		OfficialWalletStep:  DefaultOfficialWalletStep,
-		OfficialWalletMax:   DefaultOfficialWalletMax,
+	return InitWithConf(&TransferConf{
+		DB:              db,
+		StateSplitNum:   DefaultStateSplitNum,
+		RecordSplitNum:  DefaultRecordSplitNum,
+		BagSplitNum:     DefaultBagSplitNum,
+		OfficialBagStep: DefaultOfficialBagStep,
+		OfficialBagMax:  DefaultOfficialBagMax,
 	})
 }
 
 // InitWithConf 使用配置初始化
-func InitWithConf(conf *TradeConf) error {
+func InitWithConf(conf *TransferConf) error {
 	if conf == nil {
 		return errors.New("conf is nil")
 	}
 	if conf.DB == nil {
 		return errors.New("db is nil")
 	}
-	initCoinTradeDB(conf.DB)
-	err := initOfficialWallet(conf.OfficialWalletStep, conf.OfficialWalletMax)
+	initItemTransferDB(conf.DB)
+	err := initOfficialBag(conf.OfficialBagStep, conf.OfficialBagMax)
 	if err != nil {
 		return err
 	}
-	initTradeStateSplitNum(conf.TradeStateSplitNum)
-	initTradeRecordSplitNum(conf.TradeRecordSplitNum)
-	initWalletBagSplitNum(conf.WalletBagSplitNum)
+	initStateSplitNum(conf.StateSplitNum)
+	initRecordSplitNum(conf.RecordSplitNum)
+	initBagSplitNum(conf.BagSplitNum)
 	return nil
 }

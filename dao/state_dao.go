@@ -1,0 +1,128 @@
+package dao
+
+import (
+	"context"
+
+	"github.com/zjn-zjn/fisher/basic"
+	"github.com/zjn-zjn/fisher/model"
+	"gorm.io/gorm"
+)
+
+// GetOrCreateState 获取转移记录，如果不存在则创建
+func GetOrCreateState(ctx context.Context, req *model.TransferReq) (*model.State, error) {
+	var state *model.State
+	err := BagDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var err error
+		state, err = GetState(ctx, req.TransferId, req.TransferScene, db)
+		if err != nil {
+			return basic.NewDBFailed(err)
+		}
+		if state == nil {
+			state = model.AssembleState(req.FromBags, req.ToBags, req.TransferId, req.TransferScene, basic.StateStatusDoing, req.ItemType, req.Comment)
+			if err = CreateState(ctx, state, db); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
+// GetState 获取转移记录
+func GetState(ctx context.Context, transferId int64, transferScene basic.TransferScene, db *gorm.DB) (*model.State, error) {
+	var records []*model.State
+	if db == nil {
+		db = basic.GetWriteDB(ctx)
+	}
+	err := db.Table(model.GetStateTableName(transferId)).
+		Where("transfer_id = ? and transfer_scene = ?", transferId, transferScene).
+		Find(&records).Error
+	if err != nil {
+		return nil, basic.NewDBFailed(err)
+	}
+	if len(records) == 0 {
+		return nil, nil
+	}
+	return records[0], nil
+}
+
+// UpdateStateStatus 更新转移状态
+func UpdateStateStatus(ctx context.Context, transferId int64, transferScene basic.TransferScene, fromStatus, toStatus basic.StateStatus) error {
+	err := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+		Where("transfer_id = ? and transfer_scene = ? and status = ?", transferId, transferScene, fromStatus).
+		Updates(map[string]interface{}{
+			"status": toStatus,
+		}).Error
+	if err != nil {
+		return basic.NewDBFailed(err)
+	}
+	return nil
+}
+
+// UpdateStateStatusWithAffect 更新转移状态并返回是否有更改
+func UpdateStateStatusWithAffect(ctx context.Context, transferId int64, transferScene basic.TransferScene, fromStatus, toStatus basic.StateStatus) (bool, error) {
+	res := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+		Where("transfer_id = ? and transfer_scene = ? and status = ?", transferId, transferScene, fromStatus).
+		Updates(map[string]interface{}{
+			"status": toStatus,
+		})
+	if res.Error != nil {
+		return false, basic.NewDBFailed(res.Error)
+	}
+	return res.RowsAffected != 0, nil
+}
+
+// UpdateStateToRollbackDoing 将非回滚成功的转移状态更新为回滚中
+func UpdateStateToRollbackDoing(ctx context.Context, transferId int64, transferScene basic.TransferScene) (bool, error) {
+	res := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+		Where("transfer_id = ? and transfer_scene = ? and status != ?", transferId, transferScene, basic.StateStatusRollbackDone).
+		Updates(map[string]interface{}{
+			"status": basic.StateStatusRollbackDoing,
+		})
+	if res.Error != nil {
+		return false, basic.NewDBFailed(res.Error)
+	}
+	return res.RowsAffected != 0, nil
+}
+
+// GetNeedInspectionStateList 获取截止lastTime需要推进的转移记录
+func GetNeedInspectionStateList(ctx context.Context, lastTime int64) ([]*model.State, error) {
+	if basic.GetStateTableSplitNum() <= 1 {
+		return getLastTimeNeedInspectionStateListByTable(ctx, model.StateTablePrefix, lastTime)
+	}
+	var records []*model.State
+	for i := int64(0); i < basic.GetStateTableSplitNum(); i++ {
+		tableName := model.GetStateTableName(i)
+		recordsTmp, err := getLastTimeNeedInspectionStateListByTable(ctx, tableName, lastTime)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, recordsTmp...)
+	}
+	return records, nil
+}
+
+func getLastTimeNeedInspectionStateListByTable(ctx context.Context, tableName string, lastTime int64) ([]*model.State, error) {
+	var records []*model.State
+	err := basic.GetWriteDB(ctx).Table(tableName).
+		Where("status <= ? and updated_at <= ?", basic.StateStatusHalfSuccess, lastTime).
+		Find(&records).Error
+	if err != nil {
+		return nil, basic.NewDBFailed(err)
+	}
+	return records, nil
+}
+
+func CreateState(ctx context.Context, state *model.State, db *gorm.DB) error {
+	if db == nil {
+		db = basic.GetWriteDB(ctx)
+	}
+	err := db.Table(model.GetStateTableName(state.TransferId)).Create(state).Error
+	if err != nil {
+		return basic.NewDBFailed(err)
+	}
+	return nil
+}

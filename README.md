@@ -14,9 +14,9 @@ conf.InitWith*() 初始化配置
 
 service.Transfer 转移物品
 
-service.Rollback 转移回滚
+service.Rollback 回滚
 
-service.TransferInspection 转移检查与推进
+service.Inspection 检查与推进
 
 ## 备注
 

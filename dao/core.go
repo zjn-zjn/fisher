@@ -51,7 +51,7 @@ func DeductionBag(ctx context.Context, bagId, transferId, amount int64, itemType
 		//该操作已完成，直接幂等结束
 		return nil
 	}
-	err = BagDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err = RecordAndBagInstanceTX(ctx, bagId, func(ctx context.Context, db *gorm.DB) error {
 		if originRecord == nil {
 			if transferStatus == basic.RecordStatusRollback {
 				//如果是回滚操作，需要确认之前是否执行过加的操作，未执行过加直接结束
@@ -121,7 +121,7 @@ func IncreaseBag(ctx context.Context, bagId, transferId, amount int64, itemType 
 		//该操作已完成，直接幂等结束
 		return nil
 	}
-	err = BagDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err = RecordAndBagInstanceTX(ctx, bagId, func(ctx context.Context, db *gorm.DB) error {
 		if originRecord == nil {
 			if transferStatus == basic.RecordStatusRollback {
 				//如果是回滚操作，需要确认之前是否执行过减的操作，未执行过减直接结束

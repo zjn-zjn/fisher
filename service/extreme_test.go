@@ -33,7 +33,7 @@ func TestExtreme(t *testing.T) {
 				req := &model.TransferReq{
 					FromBags: []*model.TransferItem{
 						{
-							BagId:      []int64{int64(OfficialBagTypeBankBag), int64(OfficialBagTypeFee)}[random.IntN(2)],
+							BagId:      []int64{int64(OfficialBagTypeBank), int64(OfficialBagTypeFee)}[random.IntN(2)],
 							Amount:     100,
 							ChangeType: ChangeTypeSpend,
 							Comment:    "transfer deduct",
@@ -189,7 +189,7 @@ func TestFindBadCase(t *testing.T) {
 
 func findStateWithLimit(ctx context.Context, idMin, idMax int64) ([]*model.State, error) {
 	var stateList []*model.State
-	err := basic.GetWriteDB(ctx).Table("state").Where("transfer_id >= ? and transfer_id <= ?", idMin, idMax).Find(&stateList).Error
+	err := basic.GetStateWriteDB(ctx, 0).Table("state").Where("transfer_id >= ? and transfer_id <= ?", idMin, idMax).Find(&stateList).Error
 	if err != nil {
 		return nil, basic.NewDBFailed(err)
 	}
@@ -198,7 +198,7 @@ func findStateWithLimit(ctx context.Context, idMin, idMax int64) ([]*model.State
 
 func getRecordsByTransferId(ctx context.Context, transferId int64) ([]*model.Record, error) {
 	var records []*model.Record
-	err := basic.GetWriteDB(ctx).Table("record").Where("transfer_id = ?", transferId).Find(&records).Error
+	err := basic.GetStateWriteDB(ctx, 0).Table("record").Where("transfer_id = ?", transferId).Find(&records).Error
 	if err != nil {
 		return nil, basic.NewDBFailed(err)
 	}

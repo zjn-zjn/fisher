@@ -98,9 +98,32 @@ func TxWrapper(ctx context.Context, state *model.State, deductionTxItems []*Tran
 	return nil
 }
 
-// BagDBTX 事务
-func BagDBTX(ctx context.Context, fn func(context.Context, *gorm.DB) error) error {
-	tx := basic.GetWriteDB(ctx).Begin()
+// RecordAndBagInstanceTX 事务
+func RecordAndBagInstanceTX(ctx context.Context, bagId int64, fn func(context.Context, *gorm.DB) error) error {
+	tx := basic.GetRecordAndBagWriteDB(ctx, bagId).Begin()
+	if tx.Error != nil {
+		return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(tx.Error, "[fisher] begin tx failed"))
+	}
+	defer func() {
+		if err := recover(); err != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := fn(ctx, tx); err != nil {
+		if err := tx.Rollback().Error; err != nil {
+			return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(err, "[fisher] rollback tx failed"))
+		}
+		return err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(err, "[fisher] commit tx failed"))
+	}
+	return nil
+}
+
+// StateInstanceTX 事务
+func StateInstanceTX(ctx context.Context, transferId int64, fn func(context.Context, *gorm.DB) error) error {
+	tx := basic.GetStateWriteDB(ctx, transferId).Begin()
 	if tx.Error != nil {
 		return basic.NewWithErr(basic.DBFailedErrCode, errors.Wrap(tx.Error, "[fisher] begin tx failed"))
 	}

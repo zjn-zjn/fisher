@@ -14,7 +14,7 @@ import (
 
 func deductBagAmount(ctx context.Context, bagId, amount int64, itemType basic.ItemType, transferStatus basic.RecordStatus, db *gorm.DB) error {
 	if db == nil {
-		db = basic.GetWriteDB(ctx)
+		db = basic.GetRecordAndBagWriteDB(ctx, bagId)
 	}
 	var bagDB = db.Table(model.GetBagTableName(bagId))
 	//这里采用update item = item - 1 where item - amount >= 0 的方式进行扣减，提高并发成功率
@@ -37,7 +37,7 @@ func deductBagAmount(ctx context.Context, bagId, amount int64, itemType basic.It
 
 func increaseBagAmount(ctx context.Context, bagId, amount int64, itemType basic.ItemType, db *gorm.DB) error {
 	if db == nil {
-		db = basic.GetWriteDB(ctx)
+		db = basic.GetRecordAndBagWriteDB(ctx, bagId)
 	}
 	//这里采用update item = item + amount 的方式进行增加，提高并发成功率
 	res := db.Table(model.GetBagTableName(bagId)).
@@ -57,7 +57,7 @@ func getBagDefaultCreate(ctx context.Context, bagId int64, itemType basic.ItemTy
 	var bag *model.Bag
 	var bags []model.Bag
 	//获取背包，不存在就创建
-	if err := basic.GetWriteDB(ctx).Table(model.GetBagTableName(bagId)).
+	if err := basic.GetRecordAndBagWriteDB(ctx, bagId).Table(model.GetBagTableName(bagId)).
 		Where("bag_id = ? and item_type = ?", bagId, itemType).
 		Find(&bags).Error; err != nil {
 		return nil, basic.NewDBFailed(err)
@@ -70,11 +70,11 @@ func getBagDefaultCreate(ctx context.Context, bagId int64, itemType basic.ItemTy
 		Amount:   0,
 		ItemType: itemType,
 	}
-	if err := basic.GetWriteDB(ctx).Table(model.GetBagTableName(bagId)).Create(&bag).Error; err != nil {
+	if err := basic.GetRecordAndBagWriteDB(ctx, bagId).Table(model.GetBagTableName(bagId)).Create(&bag).Error; err != nil {
 		//如果是唯一键冲突错误，则再次查询
 		var mysqlErr *mysql.MySQLError
 		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
-			if err = basic.GetWriteDB(ctx).Table(model.GetBagTableName(bagId)).
+			if err = basic.GetRecordAndBagWriteDB(ctx, bagId).Table(model.GetBagTableName(bagId)).
 				Where("bag_id = ? and item_type = ?", bagId, itemType).
 				Find(&bags).Error; err != nil {
 				return nil, basic.NewDBFailed(err)

@@ -27,6 +27,9 @@ type State struct {
 type BagList []*TransferItem
 
 func GetStateTableName(transferId int64) string {
+	if basic.GetStateTableSplitNum() == 1 {
+		return StateTablePrefix
+	}
 	return StateTablePrefix + basic.GetStateTableSuffix(transferId)
 }
 

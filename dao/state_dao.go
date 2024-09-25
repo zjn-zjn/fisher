@@ -12,7 +12,7 @@ import (
 // GetOrCreateState 获取转移记录，如果不存在则创建
 func GetOrCreateState(ctx context.Context, req *model.TransferReq) (*model.State, error) {
 	var state *model.State
-	err := BagDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := StateInstanceTX(ctx, req.TransferId, func(ctx context.Context, db *gorm.DB) error {
 		var err error
 		state, err = GetState(ctx, req.TransferId, req.TransferScene, db)
 		if err != nil {
@@ -36,7 +36,7 @@ func GetOrCreateState(ctx context.Context, req *model.TransferReq) (*model.State
 func GetState(ctx context.Context, transferId int64, transferScene basic.TransferScene, db *gorm.DB) (*model.State, error) {
 	var records []*model.State
 	if db == nil {
-		db = basic.GetWriteDB(ctx)
+		db = basic.GetStateWriteDB(ctx, transferId)
 	}
 	err := db.Table(model.GetStateTableName(transferId)).
 		Where("transfer_id = ? and transfer_scene = ?", transferId, transferScene).
@@ -52,7 +52,7 @@ func GetState(ctx context.Context, transferId int64, transferScene basic.Transfe
 
 // UpdateStateStatus 更新转移状态
 func UpdateStateStatus(ctx context.Context, transferId int64, transferScene basic.TransferScene, fromStatus, toStatus basic.StateStatus) error {
-	err := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+	err := basic.GetStateWriteDB(ctx, transferId).Table(model.GetStateTableName(transferId)).
 		Where("transfer_id = ? and transfer_scene = ? and status = ?", transferId, transferScene, fromStatus).
 		Updates(map[string]interface{}{
 			"status": toStatus,
@@ -65,7 +65,7 @@ func UpdateStateStatus(ctx context.Context, transferId int64, transferScene basi
 
 // UpdateStateStatusWithAffect 更新转移状态并返回是否有更改
 func UpdateStateStatusWithAffect(ctx context.Context, transferId int64, transferScene basic.TransferScene, fromStatus, toStatus basic.StateStatus) (bool, error) {
-	res := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+	res := basic.GetStateWriteDB(ctx, transferId).Table(model.GetStateTableName(transferId)).
 		Where("transfer_id = ? and transfer_scene = ? and status = ?", transferId, transferScene, fromStatus).
 		Updates(map[string]interface{}{
 			"status": toStatus,
@@ -78,7 +78,7 @@ func UpdateStateStatusWithAffect(ctx context.Context, transferId int64, transfer
 
 // UpdateStateToRollbackDoing 将非回滚成功的转移状态更新为回滚中
 func UpdateStateToRollbackDoing(ctx context.Context, transferId int64, transferScene basic.TransferScene) (bool, error) {
-	res := basic.GetWriteDB(ctx).Table(model.GetStateTableName(transferId)).
+	res := basic.GetStateWriteDB(ctx, transferId).Table(model.GetStateTableName(transferId)).
 		Where("transfer_id = ? and transfer_scene = ? and status != ?", transferId, transferScene, basic.StateStatusRollbackDone).
 		Updates(map[string]interface{}{
 			"status": basic.StateStatusRollbackDoing,
@@ -91,24 +91,23 @@ func UpdateStateToRollbackDoing(ctx context.Context, transferId int64, transferS
 
 // GetNeedInspectionStateList 获取截止lastTime需要推进的转移记录
 func GetNeedInspectionStateList(ctx context.Context, lastTime int64) ([]*model.State, error) {
-	if basic.GetStateTableSplitNum() <= 1 {
-		return getLastTimeNeedInspectionStateListByTable(ctx, model.StateTablePrefix, lastTime)
-	}
 	var records []*model.State
-	for i := int64(0); i < basic.GetStateTableSplitNum(); i++ {
-		tableName := model.GetStateTableName(i)
-		recordsTmp, err := getLastTimeNeedInspectionStateListByTable(ctx, tableName, lastTime)
-		if err != nil {
-			return nil, err
+	for i := int64(0); i < basic.GetDBNum(); i++ {
+		for j := int64(0); j < basic.GetStateTableSplitNum(); j++ {
+			tableName := model.GetStateTableName(j)
+			recordsTmp, err := getLastTimeNeedInspectionStateListByTable(basic.GetStateWriteDB(ctx, i), tableName, lastTime)
+			if err != nil {
+				return nil, err
+			}
+			records = append(records, recordsTmp...)
 		}
-		records = append(records, recordsTmp...)
 	}
 	return records, nil
 }
 
-func getLastTimeNeedInspectionStateListByTable(ctx context.Context, tableName string, lastTime int64) ([]*model.State, error) {
+func getLastTimeNeedInspectionStateListByTable(db *gorm.DB, tableName string, lastTime int64) ([]*model.State, error) {
 	var records []*model.State
-	err := basic.GetWriteDB(ctx).Table(tableName).
+	err := db.Table(tableName).
 		Where("status <= ? and updated_at <= ?", basic.StateStatusHalfSuccess, lastTime).
 		Find(&records).Error
 	if err != nil {
@@ -119,7 +118,7 @@ func getLastTimeNeedInspectionStateListByTable(ctx context.Context, tableName st
 
 func CreateState(ctx context.Context, state *model.State, db *gorm.DB) error {
 	if db == nil {
-		db = basic.GetWriteDB(ctx)
+		db = basic.GetStateWriteDB(ctx, state.TransferId)
 	}
 	err := db.Table(model.GetStateTableName(state.TransferId)).Create(state).Error
 	if err != nil {

@@ -15,7 +15,7 @@ import (
 const (
 	ItemTypeGold basic.ItemType = 1
 
-	OfficialBagTypeBankBag basic.OfficialBagType = 100000000
+	OfficialBagTypeBank basic.OfficialBagType = 100000000
 
 	OfficialBagTypeFee basic.OfficialBagType = 200000000
 
@@ -33,10 +33,10 @@ func Init(t *testing.T) {
 		t.Fatalf("failed to connect database: %v", err)
 	}
 	err = basic.InitWithConf(&basic.TransferConf{
-		DB:             db,
-		StateSplitNum:  1,
-		RecordSplitNum: 1,
-		BagSplitNum:    1,
+		DBs:            []*gorm.DB{db},
+		StateSplitNum:  3,
+		RecordSplitNum: 3,
+		BagSplitNum:    3,
 	})
 	if err != nil {
 		t.Fatalf("failed to init conf: %v", err)
@@ -50,7 +50,7 @@ func TestTransfer(t *testing.T) {
 	err := Transfer(ctx, &model.TransferReq{
 		FromBags: []*model.TransferItem{
 			{
-				BagId:      int64(OfficialBagTypeBankBag),
+				BagId:      int64(OfficialBagTypeBank),
 				Amount:     100,
 				ChangeType: ChangeTypeSpend,
 				Comment:    "transfer deduct",

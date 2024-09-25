@@ -23,7 +23,7 @@ func Rollback(ctx context.Context, req *model.RollbackReq) error {
 		return basic.NewParamsError(errors.New("[fisher] rollback transfer params error"))
 	}
 	var state *model.State
-	err := dao.BagDBTX(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := dao.StateInstanceTX(ctx, req.TransferId, func(ctx context.Context, db *gorm.DB) error {
 		var err error
 		state, err = dao.GetState(ctx, req.TransferId, req.TransferScene, db)
 		if err != nil {

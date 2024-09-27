@@ -17,7 +17,7 @@ const (
 
 	OfficialBagTypeBank basic.OfficialBagType = 100000000
 
-	OfficialBagTypeFee basic.OfficialBagType = 200000000
+	OfficialBagTypeFee basic.OfficialBagType = 100000000000
 
 	TransferSceneBuyGoods        basic.TransferScene = 1
 	ChangeTypeSpend              basic.ChangeType    = 1
@@ -26,14 +26,19 @@ const (
 )
 
 func Init(t *testing.T) {
-	dsn := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn1 := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn2 := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/ice?charset=utf8mb4&parseTime=True&loc=Local"
 	// 连接数据库
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db1, err := gorm.Open(mysql.Open(dsn1), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to connect database: %v", err)
+	}
+	db2, err := gorm.Open(mysql.Open(dsn2), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect database: %v", err)
 	}
 	err = basic.InitWithConf(&basic.TransferConf{
-		DBs:            []*gorm.DB{db},
+		DBs:            []*gorm.DB{db1, db2},
 		StateSplitNum:  3,
 		RecordSplitNum: 3,
 		BagSplitNum:    3,

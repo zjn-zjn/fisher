@@ -17,7 +17,9 @@ const (
 	rollbackNum   = 1000
 	inspectionNum = 500
 	bagIdBase     = int64(100000000001)
+	bagIdBaseEnd  = int64(100010000001)
 	bagId2Base    = int64(100000000002)
+	bagId2BaseEnd = int64(100010000002)
 )
 
 func TestExtreme(t *testing.T) {
@@ -30,11 +32,13 @@ func TestExtreme(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			for i := 0; i < transferNum; i++ {
+				c1 := random.Int64N(1000) + 1
+				c2 := random.Int64N(1000) + 1
 				req := &model.TransferReq{
 					FromBags: []*model.TransferItem{
 						{
-							BagId:      []int64{int64(OfficialBagTypeBank), int64(OfficialBagTypeFee)}[random.IntN(2)],
-							Amount:     100,
+							BagId:      (random.Int64N(basic.DefaultOfficialBagMax) / basic.DefaultOfficialBagStep * basic.DefaultOfficialBagStep) + basic.DefaultOfficialBagStep,
+							Amount:     c1 + c2,
 							ChangeType: ChangeTypeSpend,
 							Comment:    "transfer deduct",
 						},
@@ -46,14 +50,14 @@ func TestExtreme(t *testing.T) {
 					Comment:        "transfer goods",
 					ToBags: []*model.TransferItem{
 						{
-							BagId:      bagIdBase,
-							Amount:     90,
+							BagId:      bagIdBase + random.Int64N(bagIdBaseEnd-bagIdBase),
+							Amount:     c1,
 							ChangeType: ChangeTypeSellGoodsIncome,
 							Comment:    "transfer sell goods income",
 						},
 						{
-							BagId:      bagId2Base,
-							Amount:     10,
+							BagId:      bagId2Base + random.Int64N(bagId2BaseEnd-bagId2Base),
+							Amount:     c2,
 							ChangeType: ChangeTypeSellGoodsCopyright,
 							Comment:    "transfer sell goods copyright",
 						},
@@ -113,94 +117,4 @@ func TestExtreme(t *testing.T) {
 		t.Logf("failed to inspection transfer final: %v", err)
 	}
 	t.Logf("all done start:%d end:%d", start, time.Now().UnixMilli())
-}
-
-func TestFindBadCase(t *testing.T) {
-	Init(t)
-	ctx := context.Background()
-	step := 10000
-	minId := 0
-	maxId := concurrentNum * transferNum
-
-	for {
-		stateList, err := findStateWithLimit(ctx, int64(minId), int64(minId+step))
-		if err != nil {
-			t.Fatalf("failed to find transfer state: %v", err)
-		}
-		for _, state := range stateList {
-			if state.Status == basic.StateStatusSuccess {
-				//对账
-				records, err := getRecordsByTransferId(ctx, state.TransferId) //ddl里没有transfer_id这个索引，需要的可以加
-				if err != nil {
-					t.Logf("failed to get transfer records: %v", err)
-					continue
-				}
-				var fromAmount, toAmount int64
-				for _, record := range records {
-					if record.TransferStatus != basic.RecordStatusNormal {
-						t.Logf("err transfer %d record %d status %d", state.TransferId, record.ID, record.TransferStatus)
-						continue
-					}
-					if record.RecordType == basic.RecordTypeDeduct {
-						fromAmount += record.Amount
-					} else {
-						toAmount += record.Amount
-					}
-				}
-				if fromAmount != toAmount {
-					t.Errorf("err transfer %d amount %d %d", state.TransferId, fromAmount, toAmount)
-					continue
-				}
-				continue
-			}
-			if state.Status == basic.StateStatusRollbackDone {
-				//对账
-				records, err := getRecordsByTransferId(ctx, state.TransferId)
-				if err != nil {
-					t.Logf("failed to get transfer records: %v", err)
-					continue
-				}
-				var fromAmount, toAmount int64
-				for _, record := range records {
-					if record.TransferStatus == basic.RecordStatusNormal {
-						t.Logf("err transfer %d record %d status %d", state.TransferId, record.ID, record.TransferStatus)
-						continue
-					}
-					if record.RecordType == basic.RecordTypeDeduct {
-						fromAmount += record.Amount
-					} else {
-						toAmount += record.Amount
-					}
-				}
-				if fromAmount != toAmount {
-					t.Logf("err transfer %d amount %d %d", state.TransferId, fromAmount, toAmount)
-					continue
-				}
-				continue
-			}
-			t.Logf("err transfer %d status %d", state.TransferId, state.Status)
-		}
-		if minId >= maxId {
-			break
-		}
-		minId += step
-	}
-}
-
-func findStateWithLimit(ctx context.Context, idMin, idMax int64) ([]*model.State, error) {
-	var stateList []*model.State
-	err := basic.GetStateWriteDB(ctx, 0).Table("state").Where("transfer_id >= ? and transfer_id <= ?", idMin, idMax).Find(&stateList).Error
-	if err != nil {
-		return nil, basic.NewDBFailed(err)
-	}
-	return stateList, nil
-}
-
-func getRecordsByTransferId(ctx context.Context, transferId int64) ([]*model.Record, error) {
-	var records []*model.Record
-	err := basic.GetStateWriteDB(ctx, 0).Table("record").Where("transfer_id = ?", transferId).Find(&records).Error
-	if err != nil {
-		return nil, basic.NewDBFailed(err)
-	}
-	return records, nil
 }

@@ -8,7 +8,7 @@ import (
 
 type TransferScene int     //转移场景
 type ChangeType int        //变更类型
-type RecordStatus int      //转移状态
+type RecordStatus int      //记录状态
 type RecordType int        //转移类型 增加物品或减少物品
 type StateStatus int       //转移状态
 type ItemType int          //物品类型

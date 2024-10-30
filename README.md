@@ -26,11 +26,6 @@
 
 conf/ddl.sql 为数据库表结构定义
 
-#### state表
-转移转状态表，记录转移状态
-
-
-
 ### 初始化
 
 basic.InitWithDefault(dbs []*gorm.DB) 使用默认值初始化配置，默认单表
@@ -85,6 +80,7 @@ basic.InitWithConf(conf *TransferConf) 更丰富的配置初始化
 **务必保证不同转移之间的transfer_id和transfer_scene联合唯一**
 
 **推荐使用数据库事务隔离级别：`READ-COMMITTED`**
+
 
 
 

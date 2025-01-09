@@ -37,7 +37,6 @@ basic.InitWithConf(conf *TransferConf) 更丰富的配置初始化
 #### Transfer 转移接口
 
 - 入参
-    - ctx 懂的都懂
     - req
         - TransferId 转移ID
         - UseHalfSuccess 是否使用半成功
@@ -60,7 +59,6 @@ basic.InitWithConf(conf *TransferConf) 更丰富的配置初始化
 #### Rollback 回滚转移
 
 - 入参
-    - ctx 懂的都懂
     - req
         - TransferId 回滚的转移ID
         - TransferScene 回滚的转移场景
@@ -70,7 +68,6 @@ basic.InitWithConf(conf *TransferConf) 更丰富的配置初始化
 #### Inspection 检查推进
 
 - 入参
-    - ctx 懂的都懂
     - lastTime 这个时间之前的所有历史交易状态检查与推进，需注意**如果转移还在进行中，会尝试回滚该转移**
 - 返回
     - []error 推进产生错误的列表

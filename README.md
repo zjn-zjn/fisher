@@ -81,7 +81,7 @@ go get github.com/zjn-zjn/fisher
 
 ### 表结构
 
-conf/ddl.sql 为数据库表结构定义，包含了state、record和account三张核心表。
+数据库表结构定义在 [ddl.sql](basic/ddl.sql) 文件中，包含了state、record和account三张核心表。
 
 ### 初始化
 

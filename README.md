@@ -98,13 +98,13 @@ err := basic.InitWithDefault(dbs []*gorm.DB)
 
 // 方式二：使用自定义配置初始化
 err := basic.InitWithConf(&basic.TransferConf{
-    DBs:               dbs,           // 数据库连接池
-    StateSplitNum:     10,            // 转移状态分表数量
-    RecordSplitNum:    10,            // 转移记录分表数量
-    AccountSplitNum:   10,            // 账户分表数量
-    OfficialAccountStep: 100000000,   // 官方账户步长
-    OfficialAccountMin:  1,           // 官方账户最小值
-    OfficialAccountMax:  100000000000 // 官方账户最大值
+    DBs:                 dbs,          // 数据库列表
+    StateSplitNum:       3,            // 转移状态分表数量
+    RecordSplitNum:      3,            // 转移记录分表数量
+    AccountSplitNum:     3,            // 账户分表数量
+    OfficialAccountStep: 100000000,    // 官方账户步长
+    OfficialAccountMin:  1,            // 官方账户最小值
+    OfficialAccountMax:  100000000000  // 官方账户最大值
 })
 ```
 
@@ -115,35 +115,35 @@ err := basic.InitWithConf(&basic.TransferConf{
 ```go
 // 定义常量
 const (
-    ItemTypeGold basic.ItemType = 1  // 资产类型：金币
+    ItemTypeGold basic.ItemType = 1    // 资产类型：金币
     OfficialAccountTypeFee basic.OfficialAccountType = 100000000  // 官方账户：手续费账户
     
-    TransferSceneBuyGoods basic.TransferScene = 1  // 转账场景：购买商品
-    ChangeTypeSpend basic.ChangeType = 1  // 变更类型：消费支出
-    ChangeTypeSellGoodsIncome basic.ChangeType = 2  // 变更类型：商品销售收入
-    ChangeTypeSellGoodsCopyright basic.ChangeType = 3  // 变更类型：版权分成收入
-    ChangeTypePlatformFee basic.ChangeType = 4  // 变更类型：平台手续费
+    TransferSceneBuyGoods basic.TransferScene = 1    // 转账场景：购买商品
+    ChangeTypeSpend basic.ChangeType = 1             // 变更类型：消费支出
+    ChangeTypeSellGoodsIncome basic.ChangeType = 2   // 变更类型：商品销售收入
+    ChangeTypeSellGoodsCopyright basic.ChangeType = 3 // 变更类型：版权分成收入
+    ChangeTypePlatformFee basic.ChangeType = 4       // 变更类型：平台手续费
 )
 
 // 执行资产转移
 ctx := context.Background()
-buyerAccountId := int64(100000000001)  // 买家账户ID
-sellerAccountId := int64(100000000002)  // 卖家账户ID
-copyrightAccountId := int64(100000000003)  // 版权方账户ID
+buyerAccountId := int64(100000000001)     // 买家账户ID
+sellerAccountId := int64(100000000002)    // 卖家账户ID
+copyrightAccountId := int64(100000000003) // 版权方账户ID
 
 err := service.Transfer(ctx, &model.TransferReq{
-    TransferId:     12345,            // 转移ID，和转移场景确保联合唯一
-    UseHalfSuccess: true,             // 启用半成功机制
-    ItemType:       ItemTypeGold,     // 物品类型：金币
-    TransferScene:  TransferSceneBuyGoods,  // 转账场景：购买商品
-    Comment:        "购买数字商品",     // 转移备注
+    TransferId:     12345,                // 转移ID，和转移场景确保联合唯一
+    UseHalfSuccess: true,                 // 启用半成功机制
+    ItemType:       ItemTypeGold,         // 物品类型：金币
+    TransferScene:  TransferSceneBuyGoods, // 转账场景：购买商品
+    Comment:        "购买数字商品",         // 转移备注
     
     // 资金来源账户
     FromAccounts: []*model.TransferItem{
         {
-            AccountId:  buyerAccountId,  // 买家账户
-            Amount:     100,             // 总金额
-            ChangeType: ChangeTypeSpend, // 变更类型：消费支出
+            AccountId:  buyerAccountId,   // 买家账户
+            Amount:     100,              // 总金额
+            ChangeType: ChangeTypeSpend,  // 变更类型：消费支出
             Comment:    "购买数字商品支出",
         },
     },
@@ -157,14 +157,14 @@ err := service.Transfer(ctx, &model.TransferReq{
             Comment:    "商品销售收入",
         },
         {
-            AccountId:  copyrightAccountId,  // 版权方账户
-            Amount:     10,                  // 版权方获得10%
+            AccountId:  copyrightAccountId, // 版权方账户
+            Amount:     10,                 // 版权方获得10%
             ChangeType: ChangeTypeSellGoodsCopyright,
             Comment:    "版权分成收入",
         },
         {
-            AccountId:  int64(OfficialAccountTypeFee),  // 官方手续费账户
-            Amount:     5,                              // 平台收取5%手续费
+            AccountId:  int64(OfficialAccountTypeFee), // 官方手续费账户
+            Amount:     5,                            // 平台收取5%手续费
             ChangeType: ChangeTypePlatformFee,
             Comment:    "平台手续费",
         },

@@ -58,13 +58,16 @@ Fisher 采用基于SAGA模式的分布式事务实现，通过"本地事务+补�
 ### 状态流转
 
 转移操作经历以下状态流转：
-1. **INIT(初始化)**：创建转移请求，记录转移元数据
-2. **DEBITING(扣减中)**：执行源账户资产扣减操作
-3. **HALF_SUCCESS(半成功)**：源账户扣减成功，等待目标账户增加
-4. **SUCCESS(成功)**：所有源账户扣减和目标账户增加均完成
-5. **FAILED(失败)**：转移失败，需执行补偿操作或回滚
-6. **ROLLBACKING(回滚中)**：执行回滚操作，恢复账户状态
-7. **ROLLBACKED(已回滚)**：回滚完成，所有资产变更已撤销
+1. **StateStatusDoing (1)**：转移进行中，执行源账户资产扣减和目标账户增加操作
+2. **StateStatusRollbackDoing (2)**：回滚进行中，执行补偿操作恢复账户状态
+3. **StateStatusHalfSuccess (3)**：半成功状态，源账户扣减成功，等待目标账户增加
+4. **StateStatusSuccess (4)**：转移成功，所有源账户扣减和目标账户增加均完成
+5. **StateStatusRollbackDone (5)**：回滚完成，所有资产变更已撤销
+
+记录状态定义：
+1. **RecordStatusNormal (1)**：正常记录状态
+2. **RecordStatusRollback (2)**：回滚记录状态
+3. **RecordStatusEmptyRollback (3)**：空回滚记录状态（未执行原操作的回滚）
 
 ## 安装与依赖
 
@@ -99,94 +102,95 @@ err := basic.InitWithConf(&basic.TransferConf{
     StateSplitNum:     10,            // 转移状态分表数量
     RecordSplitNum:    10,            // 转移记录分表数量
     AccountSplitNum:   10,            // 账户分表数量
-    OfficialAcctStep:  100000000,     // 官方账户类型步长
-    OfficialAcctMin:   1,             // 官方账户最小值
-    OfficialAcctMax:   100000000000,  // 官方账户最大值
+    OfficialAccountStep: 100000000,   // 官方账户步长
+    OfficialAccountMin:  1,           // 官方账户最小值
+    OfficialAccountMax:  100000000000 // 官方账户最大值
 })
 ```
 
 ### 使用示例
 
-#### 转移示例
+以下是一个完整的资产转移示例，展示了用户购买商品时的资金流向，包括卖家收款、版权分成以及平台手续费（官方账户）：
 
 ```go
-// 简单转移示例：从账户A转移100单位资产到账户B
+// 定义常量
+const (
+    ItemTypeGold basic.ItemType = 1  // 资产类型：金币
+    OfficialAccountTypeFee basic.OfficialAccountType = 100000000  // 官方账户：手续费账户
+    
+    TransferSceneBuyGoods basic.TransferScene = 1  // 转账场景：购买商品
+    ChangeTypeSpend basic.ChangeType = 1  // 变更类型：消费支出
+    ChangeTypeSellGoodsIncome basic.ChangeType = 2  // 变更类型：商品销售收入
+    ChangeTypeSellGoodsCopyright basic.ChangeType = 3  // 变更类型：版权分成收入
+    ChangeTypePlatformFee basic.ChangeType = 4  // 变更类型：平台手续费
+)
+
+// 执行资产转移
+ctx := context.Background()
+buyerAccountId := int64(100000000001)  // 买家账户ID
+sellerAccountId := int64(100000000002)  // 卖家账户ID
+copyrightAccountId := int64(100000000003)  // 版权方账户ID
+
 err := service.Transfer(ctx, &model.TransferReq{
-    TransferId:     12345,            // 转移ID，确保唯一
+    TransferId:     12345,            // 转移ID，和转移场景确保联合唯一
     UseHalfSuccess: true,             // 启用半成功机制
-    ItemType:       1,                // 物品类型（如金币、钻石等）
+    ItemType:       ItemTypeGold,     // 物品类型：金币
+    TransferScene:  TransferSceneBuyGoods,  // 转账场景：购买商品
+    Comment:        "购买数字商品",     // 转移备注
+    
+    // 资金来源账户
     FromAccounts: []*model.TransferItem{
         {
-            AccountId:   100,         // 源账户ID
-            Amount:      100,         // 扣减数量
-            ChangeType:  1,           // 扣减类型
-            Comment:     "购买商品",    // 备注
+            AccountId:  buyerAccountId,  // 买家账户
+            Amount:     100,             // 总金额
+            ChangeType: ChangeTypeSpend, // 变更类型：消费支出
+            Comment:    "购买数字商品支出",
         },
     },
+    
+    // 资金目标账户
     ToAccounts: []*model.TransferItem{
         {
-            AccountId:   200,         // 目标账户ID
-            Amount:      98,          // 增加数量
-            ChangeType:  2,           // 增加类型
-            Comment:     "销售商品收入", // 备注
+            AccountId:  sellerAccountId,  // 卖家账户
+            Amount:     85,               // 卖家获得85%
+            ChangeType: ChangeTypeSellGoodsIncome,
+            Comment:    "商品销售收入",
         },
         {
-            AccountId:   300,         // 手续费账户ID（可以是官方账户）
-            Amount:      2,           // 手续费数量
-            ChangeType:  3,           // 增加类型
-            Comment:     "交易手续费",  // 备注
+            AccountId:  copyrightAccountId,  // 版权方账户
+            Amount:     10,                  // 版权方获得10%
+            ChangeType: ChangeTypeSellGoodsCopyright,
+            Comment:    "版权分成收入",
         },
-    },
-    TransferScene: 1,                 // 转移场景
-    Comment:       "商品交易",         // 转移备注
-})
-
-// 使用官方账户示例（官方账户ID在OfficialAcctMin和OfficialAcctMax之间）
-err := service.Transfer(ctx, &model.TransferReq{
-    TransferId:     12346,
-    UseHalfSuccess: true,
-    ItemType:       1,
-    FromAccounts: []*model.TransferItem{
         {
-            AccountId:   1,           // 官方账户ID
-            Amount:      100,
-            ChangeType:  10,
-            Comment:     "系统赠送",
+            AccountId:  int64(OfficialAccountTypeFee),  // 官方手续费账户
+            Amount:     5,                              // 平台收取5%手续费
+            ChangeType: ChangeTypePlatformFee,
+            Comment:    "平台手续费",
         },
     },
-    ToAccounts: []*model.TransferItem{
-        {
-            AccountId:   500,         // 用户账户ID
-            Amount:      100,
-            ChangeType:  11,
-            Comment:     "系统奖励",
-        },
-    },
-    TransferScene: 2,
-    Comment:       "系统赠送",
 })
+
+if err != nil {
+    // 处理错误
+    log.Println("转账失败:", err)
+    return
+}
+
+// 成功处理
+log.Println("转账成功")
 ```
 
-#### 回滚示例
+更多复杂场景示例请参考测试代码：[demo_test.go](service/demo_test.go) 和 [extreme_test.go](service/extreme_test.go)
 
-```go
-// 回滚之前的转移
-err := service.Rollback(ctx, &model.RollbackReq{
-    TransferId:    12345,             // 要回滚的转移ID
-    TransferScene: 1,                 // 转移场景
-})
-```
+### 结果查询与验证
 
-#### 检查推进示例
+1. 查询state表了解整体转移状态
+2. 查询record表了解具体的转移记录和状态
+3. 检查account表确认账户余额变更是否符合预期
+4. 使用Inspection接口推进半成功状态或回滚错误转移
 
-```go
-// 检查1小时前的未完成转移
-now := time.Now().Unix()
-oneHourAgo := now - 3600
-errors := service.Inspection(ctx, oneHourAgo)
-```
-
-### 操作接口详情
+## 操作接口详情
 
 #### Transfer 转移接口
 

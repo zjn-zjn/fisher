@@ -1,7 +1,6 @@
 # Fisher
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/zjn-zjn/fisher.svg)](https://pkg.go.dev/github.com/zjn-zjn/fisher)
-[![Go Report Card](https://goreportcard.com/badge/github.com/zjn-zjn/fisher)](https://goreportcard.com/report/github.com/zjn-zjn/fisher)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 ## 简介

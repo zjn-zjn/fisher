@@ -59,18 +59,18 @@ func Rollback(ctx context.Context, req *model.RollbackReq) error {
 			return nil
 		}
 	}
-	//对加的背包进行扣减
-	for _, v := range state.ToBags {
+	//对加的账户进行扣减
+	for _, v := range state.ToAccounts {
 		v := v
-		err = dao.DeductionBag(ctx, v.BagId, state.TransferId, v.Amount, state.ItemType, req.TransferScene, basic.RecordStatusRollback, v.ChangeType, fmt.Sprintf("rollback %s", v.Comment))
+		err = dao.DeductionAccount(ctx, v.AccountId, state.TransferId, v.Amount, state.ItemType, req.TransferScene, basic.RecordStatusRollback, v.ChangeType, fmt.Sprintf("rollback %s", v.Comment))
 		if err != nil {
 			return err
 		}
 	}
-	//对加的背包进行扣减
-	for _, v := range state.FromBags {
+	//对加的账户进行扣减
+	for _, v := range state.FromAccounts {
 		v := v
-		err = dao.IncreaseBag(ctx, v.BagId, state.TransferId, v.Amount, state.ItemType, req.TransferScene, basic.RecordStatusRollback, v.ChangeType, fmt.Sprintf("rollback %s", v.Comment))
+		err = dao.IncreaseAccount(ctx, v.AccountId, state.TransferId, v.Amount, state.ItemType, req.TransferScene, basic.RecordStatusRollback, v.ChangeType, fmt.Sprintf("rollback %s", v.Comment))
 		if err != nil {
 			return err
 		}

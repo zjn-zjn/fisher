@@ -19,7 +19,7 @@ func GetOrCreateState(ctx context.Context, req *model.TransferReq) (*model.State
 			return basic.NewDBFailed(err)
 		}
 		if state == nil {
-			state = model.AssembleState(req.FromBags, req.ToBags, req.TransferId, req.TransferScene, basic.StateStatusDoing, req.ItemType, req.Comment)
+			state = model.AssembleState(req.FromAccounts, req.ToAccounts, req.TransferId, req.TransferScene, basic.StateStatusDoing, req.ItemType, req.Comment)
 			if err = CreateState(ctx, state, db); err != nil {
 				return err
 			}

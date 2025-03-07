@@ -6,32 +6,32 @@ import (
 	"github.com/pkg/errors"
 )
 
-type TransferScene int     //转移场景
-type ChangeType int        //变更类型
-type RecordStatus int      //记录状态
-type RecordType int        //转移类型 增加物品或减少物品
-type StateStatus int       //转移状态
-type ItemType int          //物品类型
-type OfficialBagType int64 //官方背包类型
+type TransferScene int         //转移场景
+type ChangeType int            //变更类型
+type RecordStatus int          //记录状态
+type TransferType int          //转移类型 增加物品或减少物品
+type StateStatus int           //转移状态
+type ItemType int              //物品类型
+type OfficialAccountType int64 //官方账户类型
 
 const (
-	DefaultOfficialBagStep = 100000000    //官方背包类型步长 默认1亿
-	DefaultOfficialBagMin  = 1            //官方背包最小值 默认1
-	DefaultOfficialBagMax  = 100000000000 //官方背包最大值 默认1000亿，即1000个官方背包
-	DefaultStateSplitNum   = 1            //转移状态分表数量 默认1单表
-	DefaultRecordSplitNum  = 1            //转移记录分表数量 默认1单表
-	DefaultBagSplitNum     = 1            //背包分表数量 默认1单表
+	DefaultOfficialAccountStep = 100000000    //官方账户类型步长 默认1亿
+	DefaultOfficialAccountMin  = 1            //官方账户最小值 默认1
+	DefaultOfficialAccountMax  = 100000000000 //官方账户最大值 默认1000亿，即1000个官方账户
+	DefaultStateSplitNum       = 1            //转移状态分表数量 默认1单表
+	DefaultRecordSplitNum      = 1            //转移记录分表数量 默认1单表
+	DefaultAccountSplitNum     = 1            //账户分表数量 默认1单表
 )
 
 var (
-	officialBagStep int64 //官方背包类型步长
-	officialBagMin  int64 //官方背包最小值
-	officialBagMax  int64 //官方背包最大值
+	officialAccountStep int64 //官方账户类型步长
+	officialAccountMin  int64 //官方账户最小值
+	officialAccountMax  int64 //官方账户最大值
 
-	stateSplitNum  int64 //转移状态分表数量
-	recordSplitNum int64 //转移记录分表数量
-	bagSplitNum    int64 //背包分表数量
-	dbNum          int64 //数据库数量
+	stateSplitNum   int64 //转移状态分表数量
+	recordSplitNum  int64 //转移记录分表数量
+	accountSplitNum int64 //账户分表数量
+	dbNum           int64 //数据库数量
 )
 
 const (
@@ -41,8 +41,8 @@ const (
 )
 
 const (
-	RecordTypeAdd    RecordType = 1 //增加
-	RecordTypeDeduct RecordType = 2 //减少
+	RecordTypeAdd    TransferType = 1 //增加
+	RecordTypeDeduct TransferType = 2 //减少
 )
 
 const (
@@ -53,27 +53,27 @@ const (
 	StateStatusRollbackDone  StateStatus = 5 //回滚完成
 )
 
-func initOfficialBag(officialBagStepVal, officialBagMinVal, officialBagMaxVal int64) error {
-	if officialBagMaxVal < officialBagStepVal {
-		return errors.New("official bag max is less than official bag step")
+func initOfficialAccount(officialAccountStepVal, officialAccountMinVal, officialAccountMaxVal int64) error {
+	if officialAccountMaxVal < officialAccountStepVal {
+		return errors.New("official account max is less than official account step")
 	}
 
-	if officialBagStepVal <= 0 {
-		officialBagStep = DefaultOfficialBagStep
+	if officialAccountStepVal <= 0 {
+		officialAccountStep = DefaultOfficialAccountStep
 	} else {
-		officialBagStep = officialBagStepVal
+		officialAccountStep = officialAccountStepVal
 	}
 
-	if officialBagMinVal <= 0 {
-		officialBagMin = DefaultOfficialBagMin
+	if officialAccountMinVal <= 0 {
+		officialAccountMin = DefaultOfficialAccountMin
 	} else {
-		officialBagMin = officialBagMinVal
+		officialAccountMin = officialAccountMinVal
 	}
 
-	if officialBagMaxVal <= 0 {
-		officialBagMax = DefaultOfficialBagMax
+	if officialAccountMaxVal <= 0 {
+		officialAccountMax = DefaultOfficialAccountMax
 	} else {
-		officialBagMax = officialBagMaxVal
+		officialAccountMax = officialAccountMaxVal
 	}
 	return nil
 }
@@ -86,48 +86,48 @@ func initRecordSplitNum(num int64) {
 	recordSplitNum = num
 }
 
-func initBagSplitNum(num int64) {
-	bagSplitNum = num
+func initAccountSplitNum(num int64) {
+	accountSplitNum = num
 }
 
-func IsOfficialBag(bagId int64) bool {
-	return bagId >= officialBagMin && bagId <= officialBagMax
+func IsOfficialAccount(accountId int64) bool {
+	return accountId >= officialAccountMin && accountId <= officialAccountMax
 }
 
-func GetRemain(bagId int64) int64 {
-	return bagId % officialBagStep
+func GetRemain(accountId int64) int64 {
+	return accountId % officialAccountStep
 }
 
-func GetMixOfficialBagId(officialBagId, remain int64) int64 {
+func GetMixOfficialAccountId(officialAccountId, remain int64) int64 {
 	if remain == 0 {
-		return officialBagId
+		return officialAccountId
 	}
-	return officialBagId - officialBagStep + remain
+	return officialAccountId - officialAccountStep + remain
 }
 
-func CheckTransferOfficialBag(bagId int64) bool {
-	return bagId%officialBagStep == 0
+func CheckTransferOfficialAccount(accountId int64) bool {
+	return accountId%officialAccountStep == 0
 }
 
-func GetStateTableSuffix(fromBagId int64) string {
+func GetStateTableSuffix(fromAccountId int64) string {
 	if stateSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", fromBagId%stateSplitNum)
+	return fmt.Sprintf("_%d", fromAccountId%stateSplitNum)
 }
 
-func GetRecordTableSuffix(bagId int64) string {
+func GetRecordTableSuffix(accountId int64) string {
 	if recordSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", bagId%recordSplitNum)
+	return fmt.Sprintf("_%d", accountId%recordSplitNum)
 }
 
-func GetBagTableSuffix(bagId int64) string {
-	if bagSplitNum <= 1 {
+func GetAccountTableSuffix(accountId int64) string {
+	if accountSplitNum <= 1 {
 		return ""
 	}
-	return fmt.Sprintf("_%d", bagId%bagSplitNum)
+	return fmt.Sprintf("_%d", accountId%accountSplitNum)
 }
 
 func GetStateTableSplitNum() int64 {

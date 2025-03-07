@@ -15,9 +15,9 @@ import (
 const (
 	ItemTypeGold basic.ItemType = 1
 
-	OfficialBagTypeBank basic.OfficialBagType = 100000000
+	OfficialAccountTypeBank basic.OfficialAccountType = 100000000
 
-	OfficialBagTypeFee basic.OfficialBagType = 100000000000
+	OfficialAccountTypeFee basic.OfficialAccountType = 100000000000
 
 	TransferSceneBuyGoods        basic.TransferScene = 1
 	ChangeTypeSpend              basic.ChangeType    = 1
@@ -27,7 +27,7 @@ const (
 
 func Init(t *testing.T) {
 	dsn1 := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
-	dsn2 := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/ice?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn2 := "root:ERcxF3&72#32q@tcp(127.0.0.1:3306)/test2?charset=utf8mb4&parseTime=True&loc=Local"
 	// 连接数据库
 	db1, err := gorm.Open(mysql.Open(dsn1), &gorm.Config{})
 	if err != nil {
@@ -38,10 +38,10 @@ func Init(t *testing.T) {
 		t.Fatalf("failed to connect database: %v", err)
 	}
 	err = basic.InitWithConf(&basic.TransferConf{
-		DBs:            []*gorm.DB{db1, db2},
-		StateSplitNum:  3,
-		RecordSplitNum: 3,
-		BagSplitNum:    3,
+		DBs:             []*gorm.DB{db1, db2},
+		StateSplitNum:   3,
+		RecordSplitNum:  3,
+		AccountSplitNum: 3,
 	})
 	if err != nil {
 		t.Fatalf("failed to init conf: %v", err)
@@ -51,11 +51,11 @@ func Init(t *testing.T) {
 func TestTransfer(t *testing.T) {
 	Init(t)
 	ctx := context.Background()
-	bagIdOne, bagIdTwo := int64(100000000001), int64(100000000002)
+	accountIdOne, accountIdTwo := int64(100000000001), int64(100000000002)
 	err := Transfer(ctx, &model.TransferReq{
-		FromBags: []*model.TransferItem{
+		FromAccounts: []*model.TransferItem{
 			{
-				BagId:      int64(OfficialBagTypeBank),
+				AccountId:  int64(OfficialAccountTypeBank),
 				Amount:     100,
 				ChangeType: ChangeTypeSpend,
 				Comment:    "transfer deduct",
@@ -64,15 +64,15 @@ func TestTransfer(t *testing.T) {
 		TransferId:     1,
 		ItemType:       ItemTypeGold,
 		UseHalfSuccess: true,
-		ToBags: []*model.TransferItem{
+		ToAccounts: []*model.TransferItem{
 			{
-				BagId:      bagIdOne,
+				AccountId:  accountIdOne,
 				Amount:     90,
 				ChangeType: ChangeTypeSellGoodsIncome,
 				Comment:    "transfer sell goods income",
 			},
 			{
-				BagId:      bagIdTwo,
+				AccountId:  accountIdTwo,
 				Amount:     10,
 				ChangeType: ChangeTypeSellGoodsCopyright,
 				Comment:    "transfer sell goods copyright",

@@ -24,10 +24,10 @@ func GetStateWriteDB(ctx context.Context, transferId int64) *gorm.DB {
 	return fisherDBs[idx].Clauses(dbresolver.Write).WithContext(ctx)
 }
 
-func GetRecordAndBagWriteDB(ctx context.Context, bagId int64) *gorm.DB {
+func GetRecordAndAccountWriteDB(ctx context.Context, accountId int64) *gorm.DB {
 	idx := 0
 	if dbNum >= 1 {
-		idx = int(bagId % dbNum)
+		idx = int(accountId % dbNum)
 	}
 	return fisherDBs[idx].Clauses(dbresolver.Write).WithContext(ctx)
 }
@@ -40,7 +40,7 @@ func GetStateReadDB(ctx context.Context, transferId int64) *gorm.DB {
 	return fisherDBs[idx].Clauses(dbresolver.Read).WithContext(ctx)
 }
 
-func GetRecordAndBagReadDB(ctx context.Context, userId int64) *gorm.DB {
+func GetRecordAndAccountReadDB(ctx context.Context, userId int64) *gorm.DB {
 	idx := 0
 	if dbNum >= 1 {
 		idx = int(userId % dbNum)

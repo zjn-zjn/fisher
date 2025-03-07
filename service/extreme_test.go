@@ -12,14 +12,14 @@ import (
 )
 
 const (
-	concurrentNum = 100
-	transferNum   = 10000
-	rollbackNum   = 1000
-	inspectionNum = 500
-	bagIdBase     = int64(100000000001)
-	bagIdBaseEnd  = int64(100010000001)
-	bagId2Base    = int64(100000000002)
-	bagId2BaseEnd = int64(100010000002)
+	concurrentNum     = 100
+	transferNum       = 10000
+	rollbackNum       = 1000
+	inspectionNum     = 500
+	accountIdBase     = int64(100000000001)
+	accountIdBaseEnd  = int64(100010000001)
+	accountId2Base    = int64(100000000002)
+	accountId2BaseEnd = int64(100010000002)
 )
 
 func TestExtreme(t *testing.T) {
@@ -35,9 +35,9 @@ func TestExtreme(t *testing.T) {
 				c1 := random.Int64N(1000) + 1
 				c2 := random.Int64N(1000) + 1
 				req := &model.TransferReq{
-					FromBags: []*model.TransferItem{
+					FromAccounts: []*model.TransferItem{
 						{
-							BagId:      (random.Int64N(basic.DefaultOfficialBagMax) / basic.DefaultOfficialBagStep * basic.DefaultOfficialBagStep) + basic.DefaultOfficialBagStep,
+							AccountId:  (random.Int64N(basic.DefaultOfficialAccountMax) / basic.DefaultOfficialAccountStep * basic.DefaultOfficialAccountStep) + basic.DefaultOfficialAccountStep,
 							Amount:     c1 + c2,
 							ChangeType: ChangeTypeSpend,
 							Comment:    "transfer deduct",
@@ -48,15 +48,15 @@ func TestExtreme(t *testing.T) {
 					UseHalfSuccess: []bool{true, false}[random.IntN(2)],
 					TransferScene:  TransferSceneBuyGoods,
 					Comment:        "transfer goods",
-					ToBags: []*model.TransferItem{
+					ToAccounts: []*model.TransferItem{
 						{
-							BagId:      bagIdBase + random.Int64N(bagIdBaseEnd-bagIdBase),
+							AccountId:  accountIdBase + random.Int64N(accountIdBaseEnd-accountIdBase),
 							Amount:     c1,
 							ChangeType: ChangeTypeSellGoodsIncome,
 							Comment:    "transfer sell goods income",
 						},
 						{
-							BagId:      bagId2Base + random.Int64N(bagId2BaseEnd-bagId2Base),
+							AccountId:  accountId2Base + random.Int64N(accountId2BaseEnd-accountId2Base),
 							Amount:     c2,
 							ChangeType: ChangeTypeSellGoodsCopyright,
 							Comment:    "transfer sell goods copyright",

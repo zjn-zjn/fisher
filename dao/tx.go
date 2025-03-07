@@ -115,8 +115,8 @@ func fastRollBack(ctx context.Context, state *model.State, txItems []*TransferTx
 	_ = UpdateStateStatus(ctx, state.TransferId, state.TransferScene, basic.StateStatusRollbackDoing, basic.StateStatusRollbackDone)
 }
 
-func RecordAndBagInstanceTX(ctx context.Context, bagId int64, fn func(context.Context, *gorm.DB) error) error {
-	return executeTx(basic.GetRecordAndBagWriteDB(ctx, bagId), fn)
+func RecordAndAccountInstanceTX(ctx context.Context, accountId int64, fn func(context.Context, *gorm.DB) error) error {
+	return executeTx(basic.GetRecordAndAccountWriteDB(ctx, accountId), fn)
 }
 
 func StateInstanceTX(ctx context.Context, transferId int64, fn func(context.Context, *gorm.DB) error) error {

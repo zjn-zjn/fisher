@@ -68,15 +68,15 @@ func processHalfSuccessTxSequences(state *model.State) ([]dao.TransferTxItem, er
 	//扣除金额一定是已经成功，所以这里不会再有扣除动作
 	//增加金额
 	var txs = make([]dao.TransferTxItem, 0)
-	for _, toBagInfo := range state.ToBags {
+	for _, toAccountInfo := range state.ToAccounts {
 		txs = append(txs, dao.TransferTxItem{
 			Exec: func(ctx context.Context) error {
 				// 增加金额
 				comment := state.Comment
-				if toBagInfo.Comment != "" {
-					comment = toBagInfo.Comment
+				if toAccountInfo.Comment != "" {
+					comment = toAccountInfo.Comment
 				}
-				err := dao.IncreaseBag(ctx, toBagInfo.BagId, state.TransferId, toBagInfo.Amount, state.ItemType, state.TransferScene, basic.RecordStatusNormal, toBagInfo.ChangeType, comment)
+				err := dao.IncreaseAccount(ctx, toAccountInfo.AccountId, state.TransferId, toAccountInfo.Amount, state.ItemType, state.TransferScene, basic.RecordStatusNormal, toAccountInfo.ChangeType, comment)
 				if err != nil {
 					return err
 				}

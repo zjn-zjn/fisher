@@ -16,7 +16,7 @@ func Transfer(ctx context.Context, req *model.TransferReq) error {
 		return basic.NewParamsError(err)
 	}
 
-	handleOfficialBags(req)
+	handleOfficialAccounts(req)
 
 	state, err := dao.GetOrCreateState(ctx, req)
 	if err != nil {
@@ -47,25 +47,25 @@ func validateTransferRequest(req *model.TransferReq) error {
 		return errors.New("invalid transfer parameters")
 	}
 
-	if len(req.FromBags) == 0 || len(req.ToBags) == 0 {
-		return errors.New("empty from or to bags")
+	if len(req.FromAccounts) == 0 || len(req.ToAccounts) == 0 {
+		return errors.New("empty from or to accounts")
 	}
 
-	uniqueBags := make(map[string]struct{})
+	uniqueAccounts := make(map[string]struct{})
 	var fromTotal, toTotal int64
 
-	for _, bag := range req.FromBags {
-		if err := validateBag(bag, "from", uniqueBags); err != nil {
+	for _, account := range req.FromAccounts {
+		if err := validateAccount(account, "from", uniqueAccounts); err != nil {
 			return err
 		}
-		fromTotal += bag.Amount
+		fromTotal += account.Amount
 	}
 
-	for _, bag := range req.ToBags {
-		if err := validateBag(bag, "to", uniqueBags); err != nil {
+	for _, account := range req.ToAccounts {
+		if err := validateAccount(account, "to", uniqueAccounts); err != nil {
 			return err
 		}
-		toTotal += bag.Amount
+		toTotal += account.Amount
 	}
 
 	if fromTotal != toTotal {
@@ -75,100 +75,100 @@ func validateTransferRequest(req *model.TransferReq) error {
 	return nil
 }
 
-func validateBag(bag *model.TransferItem, bagType string, uniqueBags map[string]struct{}) error {
-	if bag.BagId <= 0 {
-		return fmt.Errorf("invalid %s bag ID: %d", bagType, bag.BagId)
+func validateAccount(account *model.TransferItem, accountType string, uniqueAccounts map[string]struct{}) error {
+	if account.AccountId <= 0 {
+		return fmt.Errorf("invalid %s account ID: %d", accountType, account.AccountId)
 	}
 
-	if basic.IsOfficialBag(bag.BagId) {
-		if !basic.CheckTransferOfficialBag(bag.BagId) {
-			return fmt.Errorf("invalid official %s bag: %d", bagType, bag.BagId)
+	if basic.IsOfficialAccount(account.AccountId) {
+		if !basic.CheckTransferOfficialAccount(account.AccountId) {
+			return fmt.Errorf("invalid official %s account: %d", accountType, account.AccountId)
 		}
-	} else if bag.Amount <= 0 {
-		return fmt.Errorf("invalid %s amount: %d", bagType, bag.Amount)
+	} else if account.Amount <= 0 {
+		return fmt.Errorf("invalid %s amount: %d", accountType, account.Amount)
 	}
 
-	uniqueKey := fmt.Sprintf("%d_%d", bag.BagId, bag.ChangeType)
-	if _, exists := uniqueBags[uniqueKey]; exists {
-		return fmt.Errorf("duplicate change type for bag: %d", bag.BagId)
+	uniqueKey := fmt.Sprintf("%d_%d", account.AccountId, account.ChangeType)
+	if _, exists := uniqueAccounts[uniqueKey]; exists {
+		return fmt.Errorf("duplicate change type for account: %d", account.AccountId)
 	}
-	uniqueBags[uniqueKey] = struct{}{}
+	uniqueAccounts[uniqueKey] = struct{}{}
 
 	return nil
 }
 
-func handleOfficialBags(req *model.TransferReq) {
-	musk := findFirstNonOfficialBagMusk(req)
+func handleOfficialAccounts(req *model.TransferReq) {
+	musk := findFirstNonOfficialAccountMusk(req)
 	if musk == nil {
 		return
 	}
 
-	updateBagIds := func(bags []*model.TransferItem) {
-		for i := range bags {
-			if basic.IsOfficialBag(bags[i].BagId) {
-				bags[i].BagId = basic.GetMixOfficialBagId(bags[i].BagId, *musk)
+	updateAccountIds := func(accounts []*model.TransferItem) {
+		for i := range accounts {
+			if basic.IsOfficialAccount(accounts[i].AccountId) {
+				accounts[i].AccountId = basic.GetMixOfficialAccountId(accounts[i].AccountId, *musk)
 			}
 		}
 	}
 
-	updateBagIds(req.FromBags)
-	updateBagIds(req.ToBags)
+	updateAccountIds(req.FromAccounts)
+	updateAccountIds(req.ToAccounts)
 }
 
-func findFirstNonOfficialBagMusk(req *model.TransferReq) *int64 {
-	findMusk := func(bags []*model.TransferItem) *int64 {
-		for _, bag := range bags {
-			if !basic.IsOfficialBag(bag.BagId) {
-				musk := basic.GetRemain(bag.BagId)
+func findFirstNonOfficialAccountMusk(req *model.TransferReq) *int64 {
+	findMusk := func(accounts []*model.TransferItem) *int64 {
+		for _, account := range accounts {
+			if !basic.IsOfficialAccount(account.AccountId) {
+				musk := basic.GetRemain(account.AccountId)
 				return &musk
 			}
 		}
 		return nil
 	}
 
-	if musk := findMusk(req.FromBags); musk != nil {
+	if musk := findMusk(req.FromAccounts); musk != nil {
 		return musk
 	}
-	return findMusk(req.ToBags)
+	return findMusk(req.ToAccounts)
 }
 
 func prepareTransferTransactions(req *model.TransferReq) ([]*dao.TransferTxItem, []*dao.TransferTxItem, error) {
-	fromTxs := make([]*dao.TransferTxItem, 0, len(req.FromBags))
-	toTxs := make([]*dao.TransferTxItem, 0, len(req.ToBags))
+	fromTxs := make([]*dao.TransferTxItem, 0, len(req.FromAccounts))
+	toTxs := make([]*dao.TransferTxItem, 0, len(req.ToAccounts))
 
-	for _, fromBag := range req.FromBags {
-		fromTxs = append(fromTxs, createDeductionTx(req, fromBag))
+	for _, fromAccount := range req.FromAccounts {
+		fromTxs = append(fromTxs, createDeductionTx(req, fromAccount))
 	}
 
-	for _, toBag := range req.ToBags {
-		toTxs = append(toTxs, createIncreaseTx(req, toBag))
+	for _, toAccount := range req.ToAccounts {
+		toTxs = append(toTxs, createIncreaseTx(req, toAccount))
 	}
 
 	return fromTxs, toTxs, nil
 }
 
-func createDeductionTx(req *model.TransferReq, bag *model.TransferItem) *dao.TransferTxItem {
+func createDeductionTx(req *model.TransferReq, account *model.TransferItem) *dao.TransferTxItem {
 	return &dao.TransferTxItem{
 		Exec: func(ctx context.Context) error {
-			return dao.DeductionBag(ctx, bag.BagId, req.TransferId, bag.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, bag.ChangeType, req.Comment)
+			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, req.Comment)
 		},
 		Rollback: func(ctx context.Context) error {
-			return dao.IncreaseBag(ctx, bag.BagId, req.TransferId, bag.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, bag.ChangeType, req.Comment)
+			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
 		},
 	}
 }
 
-func createIncreaseTx(req *model.TransferReq, bag *model.TransferItem) *dao.TransferTxItem {
+func createIncreaseTx(req *model.TransferReq, account *model.TransferItem) *dao.TransferTxItem {
 	return &dao.TransferTxItem{
 		Exec: func(ctx context.Context) error {
 			comment := req.Comment
-			if bag.Comment != "" {
-				comment = bag.Comment
+			if account.Comment != "" {
+				comment = account.Comment
 			}
-			return dao.IncreaseBag(ctx, bag.BagId, req.TransferId, bag.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, bag.ChangeType, comment)
+			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, comment)
 		},
 		Rollback: func(ctx context.Context) error {
-			return dao.DeductionBag(ctx, bag.BagId, req.TransferId, bag.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, bag.ChangeType, req.Comment)
+			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
 		},
 	}
 }

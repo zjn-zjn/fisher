@@ -6,25 +6,25 @@ import (
 )
 
 type TransferConf struct {
-	DBs             []*gorm.DB `json:"-"`
-	StateSplitNum   int64      `json:"state_split_num"`   //转移状态分表数量 按转移ID取模分表
-	RecordSplitNum  int64      `json:"record_split_num"`  //转移记录分表数量 按背包ID取模分表
-	BagSplitNum     int64      `json:"bag_split_num"`     //背包分表数量 按背包ID取模分表
-	OfficialBagStep int64      `json:"official_bag_step"` //官方背包类型步长
-	OfficialBagMin  int64      `json:"official_bag_min"`  //官方背包最小值
-	OfficialBagMax  int64      `json:"official_bag_max"`  //官方背包最大值
+	DBs                 []*gorm.DB `json:"-"`
+	StateSplitNum       int64      `json:"state_split_num"`       //转移状态分表数量 按转移ID取模分表
+	RecordSplitNum      int64      `json:"record_split_num"`      //转移记录分表数量 按账户ID取模分表
+	AccountSplitNum     int64      `json:"account_split_num"`     //账户分表数量 按账户ID取模分表
+	OfficialAccountStep int64      `json:"official_account_step"` //官方账户类型步长
+	OfficialAccountMin  int64      `json:"official_account_min"`  //官方账户最小值
+	OfficialAccountMax  int64      `json:"official_account_max"`  //官方账户最大值
 }
 
 // InitWithDefault 使用默认配置初始化
 func InitWithDefault(dbs []*gorm.DB) error {
 	return InitWithConf(&TransferConf{
-		DBs:             dbs,
-		StateSplitNum:   DefaultStateSplitNum,
-		RecordSplitNum:  DefaultRecordSplitNum,
-		BagSplitNum:     DefaultBagSplitNum,
-		OfficialBagStep: DefaultOfficialBagStep,
-		OfficialBagMin:  DefaultOfficialBagMin,
-		OfficialBagMax:  DefaultOfficialBagMax,
+		DBs:                 dbs,
+		StateSplitNum:       DefaultStateSplitNum,
+		RecordSplitNum:      DefaultRecordSplitNum,
+		AccountSplitNum:     DefaultAccountSplitNum,
+		OfficialAccountStep: DefaultOfficialAccountStep,
+		OfficialAccountMin:  DefaultOfficialAccountMin,
+		OfficialAccountMax:  DefaultOfficialAccountMax,
 	})
 }
 
@@ -37,12 +37,12 @@ func InitWithConf(conf *TransferConf) error {
 		return errors.New("db is nil")
 	}
 	initItemTransferDB(conf.DBs)
-	err := initOfficialBag(conf.OfficialBagStep, conf.OfficialBagMin, conf.OfficialBagMax)
+	err := initOfficialAccount(conf.OfficialAccountStep, conf.OfficialAccountMin, conf.OfficialAccountMax)
 	if err != nil {
 		return err
 	}
 	initStateSplitNum(conf.StateSplitNum)
 	initRecordSplitNum(conf.RecordSplitNum)
-	initBagSplitNum(conf.BagSplitNum)
+	initAccountSplitNum(conf.AccountSplitNum)
 	return nil
 }

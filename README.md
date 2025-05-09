@@ -129,7 +129,6 @@ copyrightAccountId := int64(100000000003) // 版权方账户ID
 err := service.Transfer(ctx, &model.TransferReq{
     TransferId:     12345,                // 转移ID，和转移场景确保联合唯一
     UseHalfSuccess: true,                 // 启用半成功机制
-    ItemType:       ItemTypeGold,         // 物品类型：金币
     TransferScene:  TransferSceneBuyGoods, // 转账场景：购买商品
     Comment:        "购买数字商品",         // 转移备注
     
@@ -137,6 +136,7 @@ err := service.Transfer(ctx, &model.TransferReq{
     FromAccounts: []*model.TransferItem{
         {
             AccountId:  buyerAccountId,   // 买家账户
+            ItemType :  ItemTypeGold,
             Amount:     100,              // 总金额
             ChangeType: ChangeTypeSpend,  // 变更类型：消费支出
             Comment:    "购买数字商品支出",
@@ -147,18 +147,21 @@ err := service.Transfer(ctx, &model.TransferReq{
     ToAccounts: []*model.TransferItem{
         {
             AccountId:  sellerAccountId,  // 卖家账户
+            ItemType :  ItemTypeGold,
             Amount:     85,               // 卖家获得85%
             ChangeType: ChangeTypeSellGoodsIncome,
             Comment:    "商品销售收入",
         },
         {
             AccountId:  copyrightAccountId, // 版权方账户
+            ItemType :  ItemTypeGold,
             Amount:     10,                 // 版权方获得10%
             ChangeType: ChangeTypeSellGoodsCopyright,
             Comment:    "版权分成收入",
         },
         {
             AccountId:  int64(OfficialAccountTypeFee), // 官方手续费账户
+            ItemType :  ItemTypeGold,
             Amount:     5,                            // 平台收取5%手续费
             ChangeType: ChangeTypePlatformFee,
             Comment:    "平台手续费",
@@ -193,14 +196,15 @@ log.Println("转账成功")
     - req
         - TransferId 转移ID
         - UseHalfSuccess 是否使用半成功
-        - ItemType 转移物品类型
         - FromAccounts 转移发起者
             - AccountId 发起账户ID
+            - ItemType 转移物品类型
             - Amount 扣减数量
             - ChangeType 扣减类型
             - Comment 扣减备注
         - ToAccounts 转移接收者
             - AccountId 接收账户ID
+            - ItemType 转移物品类型
             - Amount 增加数量
             - ChangeType 增加类型
             - Comment 增加备注

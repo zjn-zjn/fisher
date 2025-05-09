@@ -5,7 +5,6 @@ CREATE TABLE `state`
     `transfer_scene` bigint        NOT NULL COMMENT '转移场景',
     `from_accounts`  varchar(5000) NOT NULL COMMENT '收款账户信息列表',
     `to_accounts`    varchar(5000) NOT NULL COMMENT '收款账户信息列表',
-    `item_type`      int           NOT NULL COMMENT '物品类型',
     `status`         int           NOT NULL COMMENT '状态 1-进行中 2-回滚中 3-半成功 4-成功 5-已回滚',
     `comment`        varchar(1000) NOT NULL COMMENT '备注',
     `created_at`     bigint        NOT NULL COMMENT '创建时间',

@@ -17,7 +17,6 @@ type State struct {
 	TransferScene basic.TransferScene `json:"transfer_scene" gorm:"column:transfer_scene;"`             // 转移场景
 	FromAccounts  AccountList         `json:"from_accounts" gorm:"column:from_accounts;"`               // 扣款账户信息列表
 	ToAccounts    AccountList         `json:"to_accounts" gorm:"column:to_accounts;"`                   // 收款账户信息列表
-	ItemType      basic.ItemType      `json:"item_type" gorm:"column:item_type;"`                       // 物品类型
 	Status        basic.StateStatus   `json:"status" gorm:"column:status;"`                             // 转移状态 1-进行中 2-回滚中 3-半成功 4-成功 5-已回滚
 	Comment       string              `json:"comment" gorm:"column:comment;"`                           // 转移备注
 	CreatedAt     int64               `json:"created_at" gorm:"column:created_at;autoCreateTime:milli"` // 创建时间
@@ -33,11 +32,10 @@ func GetStateTableName(transferId int64) string {
 	return StateTablePrefix + basic.GetStateTableSuffix(transferId)
 }
 
-func AssembleState(fromAccounts, toAccounts []*TransferItem, transferId int64, transferScene basic.TransferScene, status basic.StateStatus, itemType basic.ItemType, comment string) *State {
+func AssembleState(fromAccounts, toAccounts []*TransferItem, transferId int64, transferScene basic.TransferScene, status basic.StateStatus, comment string) *State {
 	md := &State{
 		TransferId:    transferId,
 		TransferScene: transferScene,
-		ItemType:      itemType,
 		Status:        status,
 		Comment:       comment,
 	}

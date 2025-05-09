@@ -12,6 +12,35 @@ import (
 	"gorm.io/gorm"
 )
 
+func GetAccountAmountByItemType(ctx context.Context, accountId int64, itemType basic.ItemType, db *gorm.DB) (int64, error) {
+	if db == nil {
+		db = basic.GetAccountReadDB(ctx, accountId)
+	}
+	var account model.Account
+	if err := db.Table(model.GetAccountTableName(accountId)).Where("account_id = ? and item_type = ?", accountId, itemType).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return account.Amount, nil
+}
+
+func GetAccountAmount(ctx context.Context, accountId int64, db *gorm.DB) (map[basic.ItemType]int64, error) {
+	if db == nil {
+		db = basic.GetAccountReadDB(ctx, accountId)
+	}
+	var accounts []model.Account
+	if err := db.Table(model.GetAccountTableName(accountId)).Find(&accounts).Error; err != nil {
+		return nil, err
+	}
+	amountMap := make(map[basic.ItemType]int64)
+	for _, account := range accounts {
+		amountMap[account.ItemType] = account.Amount
+	}
+	return amountMap, nil
+}
+
 func deductAccountAmount(ctx context.Context, accountId, amount int64, itemType basic.ItemType, transferStatus basic.RecordStatus, db *gorm.DB) error {
 	if db == nil {
 		db = basic.GetRecordAndAccountWriteDB(ctx, accountId)

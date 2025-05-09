@@ -76,7 +76,7 @@ func processHalfSuccessTxSequences(state *model.State) ([]dao.TransferTxItem, er
 				if toAccountInfo.Comment != "" {
 					comment = toAccountInfo.Comment
 				}
-				err := dao.IncreaseAccount(ctx, toAccountInfo.AccountId, state.TransferId, toAccountInfo.Amount, state.ItemType, state.TransferScene, basic.RecordStatusNormal, toAccountInfo.ChangeType, comment)
+				err := dao.IncreaseAccount(ctx, toAccountInfo.AccountId, state.TransferId, toAccountInfo.Amount, toAccountInfo.ItemType, state.TransferScene, basic.RecordStatusNormal, toAccountInfo.ChangeType, comment)
 				if err != nil {
 					return err
 				}

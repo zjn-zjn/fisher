@@ -43,7 +43,7 @@ func Transfer(ctx context.Context, req *model.TransferReq) error {
 }
 
 func validateTransferRequest(req *model.TransferReq) error {
-	if req.TransferId <= 0 || req.ItemType <= 0 || req.TransferScene <= 0 {
+	if req.TransferId <= 0 || req.TransferScene <= 0 {
 		return errors.New("invalid transfer parameters")
 	}
 
@@ -52,26 +52,35 @@ func validateTransferRequest(req *model.TransferReq) error {
 	}
 
 	uniqueAccounts := make(map[string]struct{})
-	var fromTotal, toTotal int64
+	fromTotalMap := make(map[basic.ItemType]int64)
+	toTotalMap := make(map[basic.ItemType]int64)
 
 	for _, account := range req.FromAccounts {
 		if err := validateAccount(account, "from", uniqueAccounts); err != nil {
 			return err
 		}
-		fromTotal += account.Amount
+		fromTotal := fromTotalMap[account.ItemType]
+		fromTotalMap[account.ItemType] = fromTotal + account.Amount
 	}
 
 	for _, account := range req.ToAccounts {
 		if err := validateAccount(account, "to", uniqueAccounts); err != nil {
 			return err
 		}
-		toTotal += account.Amount
+		toTotal := toTotalMap[account.ItemType]
+		toTotalMap[account.ItemType] = toTotal + account.Amount
 	}
 
-	if fromTotal != toTotal {
+	if len(fromTotalMap) != len(toTotalMap) {
 		return errors.New("unbalanced transfer amounts")
 	}
 
+	for itemType, from := range fromTotalMap {
+		to := toTotalMap[itemType]
+		if from != to {
+			return fmt.Errorf("unbalanced transfer amounts item type:%d from:%v to:%v", itemType, from, to)
+		}
+	}
 	return nil
 }
 
@@ -150,10 +159,10 @@ func prepareTransferTransactions(req *model.TransferReq) ([]*dao.TransferTxItem,
 func createDeductionTx(req *model.TransferReq, account *model.TransferItem) *dao.TransferTxItem {
 	return &dao.TransferTxItem{
 		Exec: func(ctx context.Context) error {
-			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, req.Comment)
+			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, account.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, req.Comment)
 		},
 		Rollback: func(ctx context.Context) error {
-			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
+			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, account.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
 		},
 	}
 }
@@ -165,10 +174,10 @@ func createIncreaseTx(req *model.TransferReq, account *model.TransferItem) *dao.
 			if account.Comment != "" {
 				comment = account.Comment
 			}
-			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, comment)
+			return dao.IncreaseAccount(ctx, account.AccountId, req.TransferId, account.Amount, account.ItemType, req.TransferScene, basic.RecordStatusNormal, account.ChangeType, comment)
 		},
 		Rollback: func(ctx context.Context) error {
-			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, req.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
+			return dao.DeductionAccount(ctx, account.AccountId, req.TransferId, account.Amount, account.ItemType, req.TransferScene, basic.RecordStatusRollback, account.ChangeType, req.Comment)
 		},
 	}
 }

@@ -59,10 +59,10 @@ func TestTransfer(t *testing.T) {
 				Amount:     100,
 				ChangeType: ChangeTypeSpend,
 				Comment:    "transfer deduct",
+				ItemType:   ItemTypeGold,
 			},
 		},
 		TransferId:     1,
-		ItemType:       ItemTypeGold,
 		UseHalfSuccess: true,
 		ToAccounts: []*model.TransferItem{
 			{
@@ -70,12 +70,14 @@ func TestTransfer(t *testing.T) {
 				Amount:     90,
 				ChangeType: ChangeTypeSellGoodsIncome,
 				Comment:    "transfer sell goods income",
+				ItemType:   ItemTypeGold,
 			},
 			{
 				AccountId:  accountIdTwo,
 				Amount:     10,
 				ChangeType: ChangeTypeSellGoodsCopyright,
 				Comment:    "transfer sell goods copyright",
+				ItemType:   ItemTypeGold,
 			},
 		},
 		TransferScene: TransferSceneBuyGoods,

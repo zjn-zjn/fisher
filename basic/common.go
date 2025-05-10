@@ -15,12 +15,12 @@ type ItemType int              //物品类型
 type OfficialAccountType int64 //官方账户类型
 
 const (
-	DefaultOfficialAccountStep = 100000000    //官方账户类型步长 默认1亿
-	DefaultOfficialAccountMin  = 1            //官方账户最小值 默认1
-	DefaultOfficialAccountMax  = 100000000000 //官方账户最大值 默认1000亿，即1000个官方账户
-	DefaultStateSplitNum       = 1            //转移状态分表数量 默认1单表
-	DefaultRecordSplitNum      = 1            //转移记录分表数量 默认1单表
-	DefaultAccountSplitNum     = 1            //账户分表数量 默认1单表
+	DefaultOfficialAccountStep = 10000000    //官方账户类型步长 默认1千万
+	DefaultOfficialAccountMin  = 1           //官方账户最小值 默认1
+	DefaultOfficialAccountMax  = 10000000000 //官方账户最大值 默认100亿，即1000个官方账户
+	DefaultStateSplitNum       = 1           //转移状态分表数量 默认1单表
+	DefaultRecordSplitNum      = 1           //转移记录分表数量 默认1单表
+	DefaultAccountSplitNum     = 1           //账户分表数量 默认1单表
 )
 
 var (

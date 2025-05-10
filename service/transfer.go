@@ -97,9 +97,9 @@ func validateAccount(account *model.TransferItem, accountType string, uniqueAcco
 		return fmt.Errorf("invalid %s amount: %d", accountType, account.Amount)
 	}
 
-	uniqueKey := fmt.Sprintf("%d_%d", account.AccountId, account.ChangeType)
+	uniqueKey := fmt.Sprintf("%d_%d_%d", account.AccountId, account.ItemType, account.ChangeType)
 	if _, exists := uniqueAccounts[uniqueKey]; exists {
-		return fmt.Errorf("duplicate change type for account: %d", account.AccountId)
+		return fmt.Errorf("duplicate change type for accountId_itemType_changeType: %s", uniqueKey)
 	}
 	uniqueAccounts[uniqueKey] = struct{}{}
 

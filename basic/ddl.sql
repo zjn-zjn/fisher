@@ -29,7 +29,8 @@ CREATE TABLE `record`
     `created_at`      bigint        NOT NULL COMMENT '创建时间',
     `updated_at`      bigint        NOT NULL COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    unique index uk_record (account_id, transfer_id, item_type, transfer_scene, transfer_type, change_type)
+    unique index uk_record (account_id, transfer_id, item_type, transfer_scene, transfer_type, change_type),
+    KEY idx_account (account_id, transfer_scene, item_type, transfer_type, change_type)
 ) COMMENT '记录表';
 
 CREATE TABLE `account`

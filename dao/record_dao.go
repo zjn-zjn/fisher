@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 
 	"github.com/zjn-zjn/fisher/model"
 
@@ -49,4 +50,28 @@ func CreateRecord(ctx context.Context, record *model.Record, db *gorm.DB) error 
 		return basic.NewDBFailed(err)
 	}
 	return nil
+}
+
+func GetAccountLastRecord(ctx context.Context, accountId int64, itemType *basic.ItemType, transferScene *basic.TransferScene, transferType *basic.TransferType, db *gorm.DB) (*model.Record, error) {
+	if db == nil {
+		db = basic.GetRecordAndAccountReadDB(ctx, accountId)
+	}
+	var record model.Record
+	db = db.Table(model.GetRecordTableName(accountId))
+	if itemType != nil {
+		db = db.Where("item_type = ?", *itemType)
+	}
+	if transferScene != nil {
+		db = db.Where("transfer_scene = ?", *transferScene)
+	}
+	if transferType != nil {
+		db = db.Where("transfer_type = ?", *transferType)
+	}
+	if err := db.Where(`transfer_status = ?`, basic.RecordStatusNormal).Order("id desc").First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &record, nil
 }

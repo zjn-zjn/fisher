@@ -57,7 +57,7 @@ func GetAccountLastRecord(ctx context.Context, accountId int64, itemType *basic.
 		db = basic.GetRecordAndAccountReadDB(ctx, accountId)
 	}
 	var record model.Record
-	db = db.Table(model.GetRecordTableName(accountId))
+	db = db.Table(model.GetRecordTableName(accountId)).Where("account_id = ?", accountId)
 	if itemType != nil {
 		db = db.Where("item_type = ?", *itemType)
 	}

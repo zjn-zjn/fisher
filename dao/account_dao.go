@@ -31,7 +31,7 @@ func GetAccountAmount(ctx context.Context, accountId int64, db *gorm.DB) (map[ba
 		db = basic.GetAccountReadDB(ctx, accountId)
 	}
 	var accounts []model.Account
-	if err := db.Table(model.GetAccountTableName(accountId)).Find(&accounts).Error; err != nil {
+	if err := db.Table(model.GetAccountTableName(accountId)).Where("account_id = ?", accountId).Find(&accounts).Error; err != nil {
 		return nil, err
 	}
 	amountMap := make(map[basic.ItemType]int64)
